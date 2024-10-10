@@ -2,11 +2,17 @@ import { StyleSheet } from 'react-native';
 
 export const colors = {
   primary: 'hsl(233, 92%, 64%)',      // Primary color
-  background01: 'hsl(240, 10%, 8%)',   // Background 01
-  background02: 'hsl(240, 13%, 10%)',  // Background 02
-  text: 'hsl(240, 100%, 97%)',         // Text color
-  secondaryText: 'hsl(0, 0%, 58%)',    // Text secondary
-  stroke: 'hsl(240, 13%, 11%)',        // Stroke color
+  background: 'hsl(240, 10%, 8%)',    // Background 01 (renamed for consistency)
+  background01: 'hsl(240, 10%, 8%)',  // Background 01
+  background02: 'hsl(240, 13%, 10%)', // Background 02
+  cardBackground: 'hsl(240, 13%, 10%)', // Card background (same as background02)
+  text: 'hsl(240, 100%, 97%)',        // Text color
+  secondaryText: 'hsl(0, 0%, 58%)',   // Text secondary
+  textSecondary: 'hsl(0, 0%, 58%)',   // Alias for secondaryText
+  stroke: 'hsl(240, 13%, 11%)',       // Stroke color
+  buttonText: 'hsl(240, 100%, 97%)',  // Button text color (same as text)
+  energyBarBackground: 'hsl(240, 13%, 15%)', // Energy bar background
+  energyBarFill: 'hsl(45, 93%, 47%)', // Energy bar fill color
 };
 
 export const fonts = {
@@ -38,7 +44,7 @@ export const globalStyles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: fonts.medium,
-    color: colors.text,
+    color: colors.buttonText,
     fontSize: 18,
   },
   secondaryText: {
@@ -68,6 +74,8 @@ export const globalStyles = StyleSheet.create({
 });
 
 export const layout = {
+  padding: 20,
   paddingHorizontal: 20,
   paddingVertical: 40,
+  spacing: 16,
 };
