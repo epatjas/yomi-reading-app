@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, TextInput, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, TextInput, Dimensions, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import ChooseAvatar from '../components/choose-avatar';
+import { createUserProfile } from '../services/userService';
 
 const avatars = [
-  require('../assets/images/avatar1.png'),
-  require('../assets/images/avatar2.png'),
-  require('../assets/images/avatar3.png'),
-  require('../assets/images/avatar4.png'),
-  require('../assets/images/avatar5.png'),
-  require('../assets/images/avatar6.png'),
-  require('../assets/images/avatar7.png'),
-  require('../assets/images/avatar8.png'),
-  require('../assets/images/avatar9.png'),
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar1.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar2.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar3.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar4.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar5.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar6.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar7.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar8.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar9.png' }
 ];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -37,12 +38,38 @@ export default function CreateProfileScreen() {
     setIsAvatarModalVisible(false);
   };
 
-  const handleStartReading = () => {
-    console.log('handleStartReading called');
-    // Add logic to save profile if needed
-    console.log('Start reading with:', { avatar: selectedAvatar, username });
-    // Navigate to the celebration screen
-    router.push('/celebration');
+  const handleStartReading = async () => {
+    if (!username.trim()) {
+      Alert.alert("Oops!", "Please enter a username before starting.");
+      return;
+    }
+
+    try {
+      const avatarUrl = avatars[selectedAvatar].uri;
+      console.log('Creating profile with:', { username, avatarUrl });
+      const result = await createUserProfile(username, avatarUrl);
+      
+      console.log('Create profile result:', result);
+
+      if (result) {
+        console.log('Profile created successfully:', result);
+        router.push('/celebration');
+      } else {
+        console.log('Profile creation returned null');
+        Alert.alert("Error", "Failed to create profile. Please try again.");
+      }
+    } catch (error) {
+      console.error('Error in handleStartReading:', error);
+      if (error instanceof Error) {
+        if (error.message === 'USERNAME_TAKEN') {
+          Alert.alert("Username Taken", "This username is already in use. Please choose a different one.");
+        } else {
+          Alert.alert("Error", `An unexpected error occurred: ${error.message}`);
+        }
+      } else {
+        Alert.alert("Error", "An unknown error occurred. Please try again.");
+      }
+    }
   };
 
   return (

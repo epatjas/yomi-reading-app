@@ -29,6 +29,7 @@ export default function RootLayout() {
         <Stack.Screen name="create-profile" options={{ headerShown: false }} />
         <Stack.Screen name="choose-avatar" options={{ headerShown: false }} />
         <Stack.Screen name="celebration" options={{ headerShown: false }} />
+        <Stack.Screen name="select-profile" options={{ headerShown: false }} /> {/* Add this line */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
         <Stack.Screen name="ReadingScreen" options={{ headerShown: false }} />

@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { Play, ArrowLeft } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getStories, Story } from '../../services/storyService';
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const { userId } = useLocalSearchParams();
   const [stories, setStories] = useState<Story[]>([]);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function LibraryScreen() {
   const handleBookPress = (story: Story) => {
     router.push({
       pathname: '/ReadingScreen',
-      params: { title: story.title }
+      params: { title: story.title, userId: userId as string }
     });
   };
 
