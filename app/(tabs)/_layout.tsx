@@ -4,12 +4,7 @@ import { CustomTabBar } from '../../components/CustomTabBar';  // Corrected impo
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false, // This removes the top bar
-      }}
-      tabBar={(props) => <CustomTabBar {...props} />}
-    >
+    <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -26,6 +21,13 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
+        }}
+      />
+      <Tabs.Screen
+        name="ReadingScreen"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
         }}
       />
     </Tabs>

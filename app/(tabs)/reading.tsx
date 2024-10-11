@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { Play, ArrowLeft } from 'lucide-react-native'; // Changed to ArrowLeft
-import { useNavigation } from '@react-navigation/native'; // Import for navigation
+import { Play, ArrowLeft } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 // Dummy data for books
 const books = [
@@ -11,15 +11,23 @@ const books = [
   { id: '3', title: 'Kissa ja kala', words: 55, image: require('../../assets/images/book3.png') },
 ];
 
-export default function ReadingScreen() {
-  const navigation = useNavigation();
+export default function LibraryScreen() {
+  const router = useRouter();
+
+  const handleBookPress = (book: { id: string; title: string; words: number; image: any }) => {
+    // Navigate to the ReadingScreen with the selected book data
+    router.push({
+      pathname: '/(tabs)/ReadingScreen',
+      params: { bookId: book.id, title: book.title }
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* Breadcrumb header */}
         <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Library</Text>
@@ -41,7 +49,7 @@ export default function ReadingScreen() {
         <FlatList
           data={books}
           renderItem={({ item }) => (
-            <Pressable style={styles.bookItem}>
+            <Pressable style={styles.bookItem} onPress={() => handleBookPress(item)}>
               <Image source={item.image} style={styles.bookImage} />
               <View style={styles.bookInfo}>
                 <Text style={styles.bookTitle}>{item.title}</Text>
