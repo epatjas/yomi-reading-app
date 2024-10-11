@@ -1,24 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
 import { MoreVertical, ArrowLeft, Mic } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { colors, fonts, layout } from '../styles/globalStyles';
+import { colors, fonts, layout } from './styles/globalStyles';
+import { getStories, Story } from '../services/storyService';
+import { useFocusEffect } from '@react-navigation/native';
 
 const ReadingScreen = () => {
   const [fontSize, setFontSize] = useState(24);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { title } = useLocalSearchParams();
+  const [stories, setStories] = useState<Story[]>([]);
+  const [currentStory, setCurrentStory] = useState<Story | null>(null);
+  const { title } = useLocalSearchParams<{ title?: string }>();
   const router = useRouter();
+
+  useFocusEffect(
+    useCallback(() => {
+      async function fetchAndSetStories() {
+        const fetchedStories = await getStories();
+        setStories(fetchedStories);
+        if (fetchedStories.length > 0) {
+          const story = title 
+            ? fetchedStories.find(s => s.title === title) 
+            : fetchedStories[0];
+          setCurrentStory(story || fetchedStories[0]);
+        }
+      }
+      fetchAndSetStories();
+    }, [title])
+  );
+
+  const handleBackPress = () => {
+    router.back(); // Navigate back to the previous screen
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.headerButton}>
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>{title || 'Loading...'}</Text>
+          <Text style={styles.title}>{currentStory ? currentStory.title : 'Loading...'}</Text>
           <TouchableOpacity onPress={() => setIsModalVisible(true)} style={styles.headerButton}>
             <MoreVertical size={24} color={colors.text} />
           </TouchableOpacity>
@@ -27,7 +51,7 @@ const ReadingScreen = () => {
         {/* Character and Energy Bar */}
         <View style={styles.characterContainer}>
           <Image
-            source={require('../../assets/images/yomi.png')}
+            source={require('../assets/images/yomi.png')}
             style={styles.characterImage}
           />
           <View style={styles.energyBarContainer}>
@@ -37,23 +61,13 @@ const ReadingScreen = () => {
 
         {/* Story Content */}
         <ScrollView style={styles.contentContainer}>
-          <Text style={[styles.content, { fontSize }]}>
-            I-so hii-ri ja pik-ku hii-ri päät-ti-vät
-            na-ker-taa juus-tos-ta ko-din
-
-            Mi-nä na-ker-ran o-ven
-
-            Mi-nä-kin na-ker-ran
-            o-ven
-
-            Mi-nä na-ker-ran ik-ku-noi-ta
-
-            Mi-nä-kin na-ker-ran
-            ik-ku-noi-ta
-
-            Niin ne na-ker-si-vat ja na-ker-si-vat.
-            Juus-tos-ta ei jää-nyt mu-ru-a-kaan.
-          </Text>
+          {currentStory ? (
+            <Text style={[styles.content, { fontSize }]}>
+              {currentStory.content}
+            </Text>
+          ) : (
+            <Text style={styles.content}>Loading story...</Text>
+          )}
         </ScrollView>
 
         {/* Record Button */}
@@ -124,9 +138,8 @@ const styles = StyleSheet.create({
   },
   recordButton: {
     position: 'absolute',
-    bottom: '6%', // Center vertically
-    left: '50%', // Center horizontally
-    transform: [{ translateX: -30 }, { translateY: 30 }], // Offset by half the button's width and height
+    bottom: 20, // Fixed distance from bottom
+    alignSelf: 'center', // This centers the button horizontally
     backgroundColor: colors.primary,
     borderRadius: 30,
     width: 60,

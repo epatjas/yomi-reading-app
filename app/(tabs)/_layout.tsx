@@ -1,10 +1,13 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { CustomTabBar } from '../../components/CustomTabBar';  // Corrected import path
+import { CustomTabBar } from '../../components/CustomTabBar';
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -21,13 +24,6 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-        }}
-      />
-      <Tabs.Screen
-        name="ReadingScreen"
-        options={{
-          href: null,
-          tabBarStyle: { display: 'none' },
         }}
       />
     </Tabs>

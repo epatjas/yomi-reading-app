@@ -5,50 +5,26 @@ import { Home, Library, CircleUserRound } from 'lucide-react-native';
 import { colors, layout } from '../app/styles/globalStyles';
 
 export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const tabs = [
+    { name: 'index', icon: Home },
+    { name: 'reading', icon: Library },
+    { name: 'profile', icon: CircleUserRound }
+  ];
+
   return (
     <View style={styles.container}>
       <View style={styles.tabBar}>
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
+        {tabs.map((tab, index) => {
           const isFocused = state.index === index;
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
-
-          const getIcon = () => {
-            const color = isFocused ? colors.primary : colors.textSecondary;
-            switch (route.name) {
-              case 'index':
-                return <Home size={24} color={color} />;
-              case 'reading':
-                return <Library size={24} color={color} />;
-              case 'profile':
-                return <CircleUserRound size={24} color={color} />;
-              default:
-                return null;
-            }
-          };
-
+          const Icon = tab.icon;
+          
           return (
             <TouchableOpacity
-              key={index}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel}
-              testID={options.tabBarTestID}
-              onPress={onPress}
+              key={tab.name}
+              onPress={() => navigation.navigate(tab.name)}
               style={styles.tabItem}
             >
-              {getIcon()}
+              <Icon size={24} color={isFocused ? colors.primary : colors.textSecondary} />
             </TouchableOpacity>
           );
         })}
@@ -59,12 +35,12 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
-    paddingBottom: layout.spacing, // Add padding to the bottom
+    backgroundColor: colors.background02,
+    paddingBottom: 16, // Add padding to the bottom of the container
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: colors.background,
+    backgroundColor: colors.background02,
     borderTopWidth: 1,
     borderTopColor: colors.stroke,
     height: 60,

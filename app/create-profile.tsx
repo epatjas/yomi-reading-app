@@ -89,8 +89,8 @@ const styles = StyleSheet.create({
   },
   avatarSection: {
     alignItems: 'center',
-    marginTop: layout.spacing * 8,
-    marginBottom: layout.spacing * 4,
+    marginTop: layout.spacing * 4,
+    marginBottom: layout.spacing * 2,
   },
   title: {
     fontSize: 24,

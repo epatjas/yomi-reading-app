@@ -1,26 +1,52 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { Play, ArrowLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-
-// Dummy data for books
-const books = [
-  { id: '1', title: 'Iso hiiri ja pikku hiiri', words: 30, image: require('../../assets/images/book1.png') },
-  { id: '2', title: 'Koira löytää luun', words: 73, image: require('../../assets/images/book2.png') },
-  { id: '3', title: 'Kissa ja kala', words: 55, image: require('../../assets/images/book3.png') },
-];
+import { getStories, Story } from '../../services/storyService';
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const [stories, setStories] = useState<Story[]>([]);
 
-  const handleBookPress = (book: { id: string; title: string; words: number; image: any }) => {
-    // Navigate to the ReadingScreen with the selected book data
+  useEffect(() => {
+    async function fetchStories() {
+      const fetchedStories = await getStories();
+      setStories(fetchedStories);
+    }
+    fetchStories();
+  }, []);
+
+  const handleBookPress = (story: Story) => {
     router.push({
-      pathname: '/(tabs)/ReadingScreen',
-      params: { bookId: book.id, title: book.title }
+      pathname: '/ReadingScreen',
+      params: { title: story.title }
     });
   };
+
+  const renderBookItem = ({ item }: { item: Story }) => (
+    <Pressable style={styles.bookItem} onPress={() => handleBookPress(item)}>
+      {item.cover_image_url ? (
+        <View style={styles.bookImage}>
+          <Image 
+            source={{ uri: item.cover_image_url }}
+            style={styles.bookImage}
+            resizeMode="cover"
+          />
+          <ActivityIndicator style={StyleSheet.absoluteFill} />
+        </View>
+      ) : (
+        <View style={[styles.bookImage, styles.placeholderImage]}>
+          <Text style={styles.placeholderText}>{item.title[0]}</Text>
+        </View>
+      )}
+      <View style={styles.bookInfo}>
+        <Text style={styles.bookTitle}>{item.title}</Text>
+        <Text style={styles.bookWords}>{item["word-count"] ? `${item["word-count"]} sanaa` : 'Word count unavailable'}</Text>
+      </View>
+      <Play size={20} color={colors.primary} />
+    </Pressable>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -47,17 +73,8 @@ export default function LibraryScreen() {
 
         {/* Book list */}
         <FlatList
-          data={books}
-          renderItem={({ item }) => (
-            <Pressable style={styles.bookItem} onPress={() => handleBookPress(item)}>
-              <Image source={item.image} style={styles.bookImage} />
-              <View style={styles.bookInfo}>
-                <Text style={styles.bookTitle}>{item.title}</Text>
-                <Text style={styles.bookWords}>{item.words} sanaa</Text>
-              </View>
-              <Play size={24} color={colors.primary} />
-            </Pressable>
-          )}
+          data={stories}
+          renderItem={renderBookItem}
           keyExtractor={item => item.id}
         />
       </View>
@@ -124,7 +141,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background02,
     borderRadius: 12,
-    padding: layout.padding * 0.75, // Reduced padding by 25%
+    padding: layout.padding * 0.75,
+    paddingRight: layout.padding,
     marginBottom: layout.spacing,
     borderWidth: 1,  // Add stroke
     borderColor: colors.stroke,  // Use stroke color from global styles
@@ -134,6 +152,16 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     marginRight: layout.spacing,
+  },
+  placeholderImage: {
+    backgroundColor: colors.background02,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontFamily: fonts.medium,
+    fontSize: 24,
+    color: colors.text,
   },
   bookInfo: {
     flex: 1,

@@ -7,6 +7,10 @@ import { useRouter } from 'expo-router';
 export default function HomeScreen() {
   const router = useRouter();
 
+  const handleReadPress = () => {
+    router.push('/reading');
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.scrollView}>
@@ -26,9 +30,9 @@ export default function HomeScreen() {
               style={styles.yomiImage}
             />
             <Text style={styles.message}>
-              Can you please read to me?{'\n'}Reading makes Yomi happy.
+              Pleaseread to me?{'\n'}Reading makes Yomi happy.
             </Text>
-            <Pressable style={styles.readButton}>
+            <Pressable style={styles.readButton} onPress={handleReadPress}>
               <Text style={styles.readButtonText}>Read to Yomi</Text>
             </Pressable>
           </View>
@@ -110,21 +114,22 @@ const styles = StyleSheet.create({
   },
   message: {
     fontFamily: fonts.regular,
-    fontSize: 18, // Slightly larger font
+    fontSize: 16, 
+    lineHeight: 27, 
     color: colors.text,
     textAlign: 'center',
     marginBottom: layout.spacing * 2,
   },
   readButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 30,
     width: '80%', // Make the button wider
   },
   readButtonText: {
     fontFamily: fonts.medium,
-    fontSize: 18,
+    fontSize: 16,
     color: colors.buttonText,
     textAlign: 'center', // Center the text in the wider button
   },
@@ -157,6 +162,7 @@ const styles = StyleSheet.create({
   energyLevel: {
     fontFamily: fonts.regular,
     fontSize: 56,
+    letterSpacing: -2, // Add a slight negative letter-spacing
     color: colors.background,
     marginRight: 8,
     lineHeight: 56, // Added to ensure proper vertical alignment
