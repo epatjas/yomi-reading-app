@@ -1,130 +1,149 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, TextInput, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { globalStyles, colors, fonts, layout } from './styles/globalStyles';
+import { colors, fonts, layout } from './styles/globalStyles';
+import ChooseAvatar from '../components/choose-avatar';
+
+const avatars = [
+  require('../assets/images/avatar1.png'),
+  require('../assets/images/avatar2.png'),
+  require('../assets/images/avatar3.png'),
+  require('../assets/images/avatar4.png'),
+  require('../assets/images/avatar5.png'),
+  require('../assets/images/avatar6.png'),
+  require('../assets/images/avatar7.png'),
+  require('../assets/images/avatar8.png'),
+  require('../assets/images/avatar9.png'),
+];
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CreateProfileScreen() {
-  const [name, setName] = useState('');
   const router = useRouter();
+  const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState(0);
+  const [username, setUsername] = useState('');
+
+  const handleOpenAvatarModal = () => {
+    setIsAvatarModalVisible(true);
+  };
+
+  const handleCloseAvatarModal = () => {
+    setIsAvatarModalVisible(false);
+  };
+
+  const handleSelectAvatar = (avatarIndex: number) => {
+    setSelectedAvatar(avatarIndex);
+    setIsAvatarModalVisible(false);
+  };
 
   const handleStartReading = () => {
-    // You might want to add some validation here, e.g., checking if name is not empty
-    if (name.trim()) {
-      router.push('/celebration');
-    } else {
-      // You could show an alert or some feedback if the name is empty
-      alert("Please enter a name before continuing.");
-    }
+    console.log('handleStartReading called');
+    // Add logic to save profile if needed
+    console.log('Start reading with:', { avatar: selectedAvatar, username });
+    // Navigate to the celebration screen
+    router.push('/celebration');
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Text style={styles.pageTitle}>Profile</Text>
-        
-        <View style={styles.contentContainer}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.avatarSection}>
           <Text style={styles.title}>Who's reading?</Text>
-          
-          <View style={styles.avatarContainer}>
-            <Image 
-              source={require('../assets/images/avatar1.png')} 
-              style={styles.avatar}
-            />
-            <TouchableOpacity onPress={() => router.push('/choose-avatar')}>
-              <Text style={styles.changeAvatarText}>Change avatar</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>How can we call you?</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="SuperReader123"
-              placeholderTextColor={colors.secondaryText}
-            />
-          </View>
+          <Pressable onPress={handleOpenAvatarModal} style={styles.avatarContainer}>
+            <Image source={avatars[selectedAvatar]} style={styles.avatar} />
+            <Text style={styles.changeAvatarText}>Change avatar</Text>
+          </Pressable>
         </View>
-
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleStartReading}
-        >
-          <Text style={styles.buttonText}>Let's start to read</Text>
-        </TouchableOpacity>
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>How can we call you?</Text>
+          <TextInput
+            style={styles.input}
+            value={username}
+            onChangeText={setUsername}
+            placeholder="SuperReader123"
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
       </View>
+      <Pressable style={styles.startButton} onPress={handleStartReading}>
+        <Text style={styles.startButtonText}>Let's start to read</Text>
+      </Pressable>
+      <ChooseAvatar
+        isVisible={isAvatarModalVisible}
+        onClose={handleCloseAvatarModal}
+        onSelectAvatar={handleSelectAvatar}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background01,
-  },
   container: {
     flex: 1,
-    paddingHorizontal: layout.paddingHorizontal,
-    paddingVertical: layout.paddingVertical,
-    justifyContent: 'space-between',
+    backgroundColor: colors.background,
   },
-  pageTitle: {
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
-    fontFamily: fonts.regular,
-    marginBottom: 20,
+  content: {
+    flex: 1,
+    paddingHorizontal: layout.padding,
   },
-  contentContainer: {
+  avatarSection: {
     alignItems: 'center',
-    marginTop: -240, // This lifts the content container up by 48 pixels
+    marginTop: layout.spacing * 8,
+    marginBottom: layout.spacing * 4,
   },
   title: {
     fontSize: 24,
-    color: colors.text,
     fontFamily: fonts.regular,
-    marginBottom: 20,
+    color: colors.text,
+    marginBottom: layout.spacing,
+    textAlign: 'center',
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: 40,
   },
   avatar: {
     width: 120,
     height: 120,
-    borderRadius: 50,
-    marginBottom: 10,
+    borderRadius: 60,
+    marginBottom: layout.spacing,
   },
   changeAvatarText: {
     color: colors.primary,
     fontFamily: fonts.regular,
+    fontSize: 16,
   },
   inputContainer: {
     width: '100%',
   },
   inputLabel: {
-    color: colors.text,
+    fontSize: 18,
     fontFamily: fonts.regular,
-    marginBottom: 12,
+    color: colors.text,
+    marginBottom: layout.spacing,
   },
   input: {
-    backgroundColor: colors.background02,
-    borderRadius: 12,
-    padding: 16,
-    color: colors.text,
-    fontFamily: fonts.regular,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 25,
-    padding: 15,
-    alignItems: 'center',
     width: '100%',
+    height: 48,
+    backgroundColor: colors.background02,
+    borderRadius: 10,
+    paddingHorizontal: layout.padding,
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    color: colors.text,
   },
-  buttonText: {
+  startButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginBottom: layout.spacing * 2,
+    marginHorizontal: layout.padding,
+  },
+  startButtonText: {
     color: colors.text,
     fontFamily: fonts.regular,
     fontSize: 16,
+    textAlign: 'center',
   },
 });

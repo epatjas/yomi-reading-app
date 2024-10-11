@@ -2,17 +2,18 @@ import { StyleSheet } from 'react-native';
 
 export const colors = {
   primary: 'hsl(233, 92%, 64%)',      // Primary color
-  background: 'hsl(240, 10%, 8%)',    // Background 01 (renamed for consistency)
-  background01: 'hsl(240, 10%, 8%)',  // Background 01
-  background02: 'hsl(240, 13%, 10%)', // Background 02
-  cardBackground: 'hsl(240, 13%, 10%)', // Card background (same as background02)
-  text: 'hsl(240, 100%, 97%)',        // Text color
-  secondaryText: 'hsl(0, 0%, 58%)',   // Text secondary
-  textSecondary: 'hsl(0, 0%, 58%)',   // Alias for secondaryText
+  background: 'hsl(240, 10%, 8%)',    // Dark background
+  background01: 'hsl(240, 10%, 8%)',  // Dark background (alias)
+  background02: 'hsl(240, 13%, 10%)', // Slightly lighter dark background
+  yellowLight: 'hsl(51, 76%, 65%)',   // Light yellow
+  yellowMedium: 'hsl(51, 60%, 55%)',  // Medium yellow
+  yellowDark: 'hsl(51, 75%, 40%)',    // Dark yellow
+  text: 'hsl(240, 100%, 97%)',        // Light text color
+  textSecondary: 'hsl(0, 0%, 58%)',   // Secondary text color
   stroke: 'hsl(240, 13%, 11%)',       // Stroke color
   buttonText: 'hsl(240, 100%, 97%)',  // Button text color (same as text)
-  energyBarBackground: 'hsl(240, 13%, 15%)', // Energy bar background
-  energyBarFill: 'hsl(45, 93%, 47%)', // Energy bar fill color
+  mint: 'hsl(156, 48%, 63%)',         // Mint green
+  lavender: 'hsl(237, 70%, 81%)',     // Lavender
 };
 
 export const fonts = {
@@ -49,7 +50,7 @@ export const globalStyles = StyleSheet.create({
   },
   secondaryText: {
     fontFamily: fonts.regular,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
     fontSize: 14,
   },
   card: {

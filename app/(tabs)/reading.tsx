@@ -1,68 +1,110 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { Play } from 'lucide-react-native'; // Import the Play icon
+import { Play, ArrowLeft } from 'lucide-react-native'; // Changed to ArrowLeft
+import { useNavigation } from '@react-navigation/native'; // Import for navigation
 
 // Dummy data for books
 const books = [
   { id: '1', title: 'Iso hiiri ja pikku hiiri', words: 30, image: require('../../assets/images/book1.png') },
-  { id: '2', title: 'Koira löytää luun', words: 36, image: require('../../assets/images/book2.png') },
+  { id: '2', title: 'Koira löytää luun', words: 73, image: require('../../assets/images/book2.png') },
+  { id: '3', title: 'Kissa ja kala', words: 55, image: require('../../assets/images/book3.png') },
 ];
 
 export default function ReadingScreen() {
+  const navigation = useNavigation();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Library</Text>
-      <View style={styles.yomiContainer}>
-        <Image
-          source={require('../../assets/images/yomi-small.png')}
-          style={styles.yomiImage}
-        />
-        <Text style={styles.yomiText}>What do you want to read?</Text>
-      </View>
-      <FlatList
-        data={books}
-        renderItem={({ item }) => (
-          <Pressable style={styles.bookItem}>
-            <Image source={item.image} style={styles.bookImage} />
-            <View style={styles.bookInfo}>
-              <Text style={styles.bookTitle}>{item.title}</Text>
-              <Text style={styles.bookWords}>{item.words} sanaa</Text>
-            </View>
-            <Play
-              size={24} // Adjust size as needed
-              color={colors.primary} // Use the appropriate color from your globalStyles
-              style={styles.playIcon}
-            />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Breadcrumb header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+            <ArrowLeft size={24} color={colors.text} />
           </Pressable>
-        )}
-        keyExtractor={item => item.id}
-      />
-    </View>
+          <Text style={styles.headerTitle}>Library</Text>
+          <View style={styles.headerRightPlaceholder} />
+        </View>
+
+        {/* Yomi speech bubble */}
+        <View style={styles.speechBubble}>
+          <Image
+            source={require('../../assets/images/yomi.png')}
+            style={styles.yomiImage}
+          />
+          <View style={styles.bubbleContent}>
+            <Text style={styles.yomiText}>What do you want to read?</Text>
+          </View>
+        </View>
+
+        {/* Book list */}
+        <FlatList
+          data={books}
+          renderItem={({ item }) => (
+            <Pressable style={styles.bookItem}>
+              <Image source={item.image} style={styles.bookImage} />
+              <View style={styles.bookInfo}>
+                <Text style={styles.bookTitle}>{item.title}</Text>
+                <Text style={styles.bookWords}>{item.words} sanaa</Text>
+              </View>
+              <Play size={24} color={colors.primary} />
+            </Pressable>
+          )}
+          keyExtractor={item => item.id}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
     padding: layout.padding,
   },
-  title: {
-    fontFamily: fonts.bold,
-    fontSize: 24,
-    color: colors.text,
-    marginBottom: layout.spacing,
-  },
-  yomiContainer: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: layout.spacing,
+    justifyContent: 'space-between',
+    marginBottom: layout.spacing * 2,
+  },
+  backButton: {
+    padding: 8, // Add some padding for easier tapping
+  },
+  headerTitle: {
+    fontFamily: fonts.medium,
+    fontSize: 18,
+    color: colors.text,
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerRightPlaceholder: {
+    width: 40, // Match the width of the back button for centering
+  },
+  speechBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: layout.spacing * 2,
   },
   yomiImage: {
-    width: 40,
-    height: 40,
-    marginRight: layout.spacing / 2,
+    width: 56,
+    height: 56,
+    marginRight: -20, // Overlap with the bubble
+    zIndex: 1,
+  },
+  bubbleContent: {
+    backgroundColor: colors.background02,
+    borderRadius: 16,
+    padding: layout.padding,
+    paddingLeft: layout.padding * 2, // Extra padding for Yomi image overlap
+    flex: 1,
+    borderWidth: 1,  // Add stroke
+    borderColor: colors.stroke, 
+    minHeight: 56, 
   },
   yomiText: {
     fontFamily: fonts.regular,
@@ -72,10 +114,12 @@ const styles = StyleSheet.create({
   bookItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.background02,
     borderRadius: 12,
-    padding: layout.padding,
+    padding: layout.padding * 0.75, // Reduced padding by 25%
     marginBottom: layout.spacing,
+    borderWidth: 1,  // Add stroke
+    borderColor: colors.stroke,  // Use stroke color from global styles
   },
   bookImage: {
     width: 60,
@@ -97,8 +141,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  playIcon: {
-    width: 24,
-    height: 24,
+  playIconContainer: {
+    backgroundColor: colors.yellowMedium,
+    borderRadius: 12,
+    padding: 8,
   },
 });

@@ -1,144 +1,198 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
-import { Link } from 'expo-router';
+import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { Zap } from 'lucide-react-native'; // Import the Zap icon
+import { Zap, Percent } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   return (
-    <View style={styles.container}>
-      {/* Top right avatar */}
-      <Image
-        source={require('../../assets/images/avatar.png')}
-        style={styles.avatar}
-      />
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.container}>
+          {/* Top right avatar */}
+          <Pressable onPress={() => router.push('/profile')}>
+            <Image
+              source={require('../../assets/images/avatar.png')}
+              style={styles.avatar}
+            />
+          </Pressable>
 
-      {/* Main content */}
-      <View style={styles.mainContent}>
-        <Image
-          source={require('../../assets/images/yomi.png')}
-          style={styles.yomiImage}
-        />
-        <Text style={styles.message}>
-          Can you please read to me?{'\n'}Reading makes Yomi happy.
-        </Text>
-        <Pressable style={styles.readButton}>
-          <Text style={styles.readButtonText}>Read to Yomi</Text>
-        </Pressable>
-      </View>
+          {/* Main content */}
+          <View style={styles.mainContent}>
+            <Image
+              source={require('../../assets/images/yomi.png')}
+              style={styles.yomiImage}
+            />
+            <Text style={styles.message}>
+              Can you please read to me?{'\n'}Reading makes Yomi happy.
+            </Text>
+            <Pressable style={styles.readButton}>
+              <Text style={styles.readButtonText}>Read to Yomi</Text>
+            </Pressable>
+          </View>
 
-      {/* Energy level card */}
-      <View style={styles.energyCard}>
-        <View style={styles.energyHeader}>
-          <Image
-            source={require('../../assets/images/yomi-small.png')}
-            style={styles.yomiSmall}
-          />
-          <Zap
-            size={24} // Adjust size as needed
-            color={colors.energyBarFill} // Use the appropriate color from your globalStyles
-            style={styles.energyIcon}
-          />
+          {/* Energy level card */}
+          <View style={styles.energyCard}>
+            <View style={styles.energyHeader}>
+              <Image
+                source={require('../../assets/images/yomi-small.png')}
+                style={styles.yomiSmall}
+              />
+              <View style={styles.energyIconContainer}>
+                <Zap
+                  size={24}
+                  color={colors.background}
+                />
+              </View>
+            </View>
+            <View style={styles.energyLevelContainer}>
+              <Text style={styles.energyLevel}>56</Text>
+              <View style={styles.energyLevelDetails}>
+                <View style={styles.energyPercent}>
+                  <Percent
+                    size={24}
+                    color={colors.background}
+                  />
+                </View>
+                <Text style={styles.energyText}>Energy level</Text>
+              </View>
+            </View>
+            <View style={styles.energyBar}>
+              <View style={[styles.energyFill, { width: '56%' }]} />
+            </View>
+            <Text style={styles.careText}>Care for Yomi</Text>
+          </View>
         </View>
-        <Text style={styles.energyLevel}>56%</Text>
-        <Text style={styles.energyText}>Energy level</Text>
-        <View style={styles.energyBar}>
-          <View style={[styles.energyFill, { width: '56%' }]} />
-        </View>
-        <Text style={styles.careText}>Care for Yomi</Text>
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
     padding: layout.padding,
+    paddingTop: 0, // Remove top padding
   },
   avatar: {
     position: 'absolute',
     top: layout.padding,
-    right: layout.padding,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    right: 0, // Align to the right edge of the container
+    width: 44,
+    height: 44,
+    borderRadius: 22, // Make it perfectly round
+    zIndex: 1,
   },
   mainContent: {
-    flex: 1,
-    justifyContent: 'center',
+    backgroundColor: colors.background02,
+    borderRadius: 16,
+    borderColor: colors.stroke,
+    borderWidth: 1,
+    padding: layout.padding,
     alignItems: 'center',
+    marginTop: 100, // Adjust this value to move the content higher
+    marginBottom: layout.spacing,
+    height: 360, // Increase the height to make it taller
   },
   yomiImage: {
-    width: 120,
-    height: 120,
-    marginBottom: layout.spacing,
+    width: 120, // Reduced size
+    height: 120, // Reduced size
+    marginBottom: layout.spacing * 2,
   },
   message: {
     fontFamily: fonts.regular,
-    fontSize: 16,
+    fontSize: 18, // Slightly larger font
     color: colors.text,
     textAlign: 'center',
-    marginBottom: layout.spacing,
+    marginBottom: layout.spacing * 2,
   },
   readButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    width: '80%', // Make the button wider
   },
   readButtonText: {
     fontFamily: fonts.medium,
-    fontSize: 16,
+    fontSize: 18,
     color: colors.buttonText,
+    textAlign: 'center', // Center the text in the wider button
   },
   energyCard: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.yellowLight,
     borderRadius: 16,
     padding: layout.padding,
-    marginTop: layout.spacing,
+    marginBottom: layout.spacing,
   },
   energyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: layout.spacing / 2,
+    marginBottom: layout.spacing,
   },
   yomiSmall: {
-    width: 30,
-    height: 30,
+    width: 48,
+    height: 48,
   },
-  energyIcon: {
-    width: 20,
-    height: 20,
+  energyIconContainer: {
+    backgroundColor: colors.yellowMedium,
+    borderRadius: 12,
+    padding: 8,
+  },
+  energyLevelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center', // Changed from 'flex-start' to 'center'
+    marginBottom: layout.spacing,
   },
   energyLevel: {
-    fontFamily: fonts.bold,
-    fontSize: 32,
-    color: colors.text,
+    fontFamily: fonts.regular,
+    fontSize: 56,
+    color: colors.background,
+    marginRight: 8,
+    lineHeight: 56, // Added to ensure proper vertical alignment
+  },
+  energyLevelDetails: {
+    flexDirection: 'column',
+    justifyContent: 'center', // Changed from 'flex-start' to 'center'
+  },
+  energyPercent: {
+    marginBottom: 4, // Add some space between the icon and the text
   },
   energyText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: layout.spacing / 2,
+    fontSize: 16,
+    color: colors.background,
+    lineHeight: 16, // Added to ensure proper vertical alignment
   },
   energyBar: {
-    height: 4,
-    backgroundColor: colors.energyBarBackground,
-    borderRadius: 2,
-    marginBottom: layout.spacing / 2,
+    height: 12, // Increased thickness
+    backgroundColor: colors.background,
+    borderRadius: 6, // Rounded edges
+    marginBottom: layout.spacing,
+    padding: 2, // Small padding
   },
   energyFill: {
     height: '100%',
-    backgroundColor: colors.energyBarFill,
-    borderRadius: 2,
+    backgroundColor: colors.yellowDark,
+    borderRadius: 4, // Rounded edges for the fill
   },
   careText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 16,
+    color: colors.background,
     textAlign: 'right',
+  },
+  futureContentPlaceholder: {
+    height: 200, // Placeholder height, adjust as needed
   },
 });
