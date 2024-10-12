@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image, Animated, Alert } from 'react-native';
 import { MoreVertical, ArrowLeft, Mic } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getStories, Story } from '../services/storyService';
 import { useFocusEffect } from '@react-navigation/native';
+import { startSpeechRecognition } from '../services/speechRecognitionService';
+import { Audio } from 'expo-av';
 
 const ReadingScreen = () => {
   const [fontSize, setFontSize] = useState(24);
@@ -13,6 +15,10 @@ const ReadingScreen = () => {
   const [currentStory, setCurrentStory] = useState<Story | null>(null);
   const { title } = useLocalSearchParams<{ title?: string }>();
   const router = useRouter();
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [hasPermission, setHasPermission] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -30,8 +36,80 @@ const ReadingScreen = () => {
     }, [title])
   );
 
+  useEffect(() => {
+    (async () => {
+      const { status } = await Audio.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
+
   const handleBackPress = () => {
     router.back(); // Navigate back to the previous screen
+  };
+
+  const handleStartReading = async () => {
+    console.log("Record button pressed");
+    if (!hasPermission) {
+      console.log("No permission");
+      Alert.alert(
+        "Permission Required",
+        "This app needs access to your microphone to record audio.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    try {
+      console.log("Starting recording");
+      setIsRecording(true);
+      
+      console.log("Setting audio mode");
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      console.log("Creating recording");
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      console.log("Recording started");
+      
+      // Record for 5 seconds (adjust as needed)
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      console.log("Stopping recording");
+      await recording.stopAndUnloadAsync();
+
+      console.log("Getting recording URI");
+      const uri = recording.getURI();
+      console.log("Recording URI:", uri);
+
+      if (uri) {
+        console.log("Fetching recording file");
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const file = new File([blob], "audio.m4a", { type: "audio/m4a" });
+
+        console.log("Starting speech recognition");
+        await startSpeechRecognition(file, (text) => {
+          console.log('Transcription:', text);
+          setTranscript(text);
+        });
+      } else {
+        console.error('Recording URI is null');
+      }
+    } catch (error) {
+      console.error('Error in handleStartReading:', error);
+    } finally {
+      setIsRecording(false);
+      console.log("Recording process finished");
+    }
+  };
+
+  const handleStopReading = () => {
+    // If you implement a way to stop recording early, put that logic here
+    setIsRecording(false);
   };
 
   return (
@@ -71,9 +149,21 @@ const ReadingScreen = () => {
         </ScrollView>
 
         {/* Record Button */}
-        <TouchableOpacity style={styles.recordButton}>
-          <Mic size={24} color="white" />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <TouchableOpacity 
+            style={[styles.recordButton, isRecording && styles.recordingButton]}
+            onPress={() => console.log("Button pressed")}
+            disabled={!hasPermission}
+          >
+            <Mic size={24} color="white" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {transcript && (
+          <View style={styles.transcriptContainer}>
+            <Text style={styles.transcriptText}>{transcript}</Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -138,7 +228,7 @@ const styles = StyleSheet.create({
   },
   recordButton: {
     position: 'absolute',
-    bottom: 20, // Fixed distance from bottom
+    bottom: 10, // Fixed distance from bottom
     alignSelf: 'center', // This centers the button horizontally
     backgroundColor: colors.primary,
     borderRadius: 30,
@@ -146,6 +236,20 @@ const styles = StyleSheet.create({
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  transcriptContainer: {
+    marginTop: layout.spacing,
+    padding: layout.padding,
+    backgroundColor: colors.background02,
+    borderRadius: 8,
+  },
+  transcriptText: {
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    color: colors.text,
+  },
+  recordingButton: {
+    backgroundColor: 'red', // or any color you prefer for active recording
   },
 });
 
