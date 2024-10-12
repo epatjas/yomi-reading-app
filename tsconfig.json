@@ -18,6 +18,7 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "images.d.ts"
   ]
 }

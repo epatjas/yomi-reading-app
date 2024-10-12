@@ -12,8 +12,12 @@ export const colors = {
   textSecondary: 'hsl(0, 0%, 58%)',   // Secondary text color
   stroke: 'hsl(240, 13%, 11%)',       // Stroke color
   buttonText: 'hsl(240, 100%, 97%)',  // Button text color (same as text)
-  mint: 'hsl(156, 48%, 63%)',         // Mint green
-  lavender: 'hsl(237, 70%, 81%)',     // Lavender
+  mint: 'hsl(156, 48%, 63%)',        // Mint green
+  green: 'hsl(83, 37%, 85%)',        // Green
+  greenDark: 'hsl(92, 21%, 66%)',    // Darker green
+  lavender: 'hsl(237, 70%, 81%)',    // Lavender
+  lavenderDark: 'hsl(237, 68%, 76%)', // Darker lavender
+  error: 'hsl(368, 63%, 51%)',
 };
 
 export const fonts = {

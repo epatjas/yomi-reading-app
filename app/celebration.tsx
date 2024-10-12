@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import Svg, { Path } from 'react-native-svg';
 
@@ -10,13 +10,17 @@ const IMAGE_SIZE = SHAPE_SIZE * 0.8;
 
 export default function CelebrationScreen() {
   const router = useRouter();
+  const { userId } = useLocalSearchParams();
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace('/(tabs)');
+      router.replace({
+        pathname: '/(tabs)',
+        params: { userId }
+      });
     }, 3000);
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, userId]);
 
   return (
     <View style={styles.container}>

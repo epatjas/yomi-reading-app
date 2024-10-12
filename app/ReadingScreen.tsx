@@ -1,24 +1,44 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image, Animated, Alert } from 'react-native';
-import { MoreVertical, ArrowLeft, Mic } from 'lucide-react-native';
+import { MoreVertical, ArrowLeft, Mic, Square } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getStories, Story } from '../services/storyService';
 import { useFocusEffect } from '@react-navigation/native';
 import { startSpeechRecognition } from '../services/speechRecognitionService';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
+import {
+  saveReadingSessionToDatabase,
+  updateUserTotalEnergy,
+  ReadingSession
+} from '../services/readingSessionsHelpers';
+import { getYomiEnergy, addReadingEnergy, addStoryCompletionBonus } from '../services/yomiEnergyService';
+import ReadingEnergyDisplay from '../components/ReadingEnergyDisplay';
 
 const ReadingScreen = () => {
   const [fontSize, setFontSize] = useState(24);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [stories, setStories] = useState<Story[]>([]);
   const [currentStory, setCurrentStory] = useState<Story | null>(null);
-  const { title } = useLocalSearchParams<{ title?: string }>();
+  const { title, userId } = useLocalSearchParams<{ title?: string; userId?: string }>();
   const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [hasPermission, setHasPermission] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [recordingObject, setRecordingObject] = useState<Audio.Recording | null>(null);
+  const [totalEnergy, setTotalEnergy] = useState(0);
+  const [sessionEnergy, setSessionEnergy] = useState(0);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [correctWords, setCorrectWords] = useState(0);
+  const [currentEnergy, setCurrentEnergy] = useState(0);
+  const [energyUpdateInterval, setEnergyUpdateInterval] = useState<NodeJS.Timeout | null>(null);
+  const [energyPulse] = useState(new Animated.Value(1));
+  const [recentGain, setRecentGain] = useState(0);
+  const [isReading, setIsReading] = useState(false);
+  const [energyProgress, setEnergyProgress] = useState(0);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -43,14 +63,103 @@ const ReadingScreen = () => {
     })();
   }, []);
 
-  const handleBackPress = () => {
-    router.back(); // Navigate back to the previous screen
+  useEffect(() => {
+    if (isReading) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isReading]);
+
+  useEffect(() => {
+    const fetchTotalEnergy = async () => {
+      if (userId) {
+        const energy = await getYomiEnergy(userId);
+        setTotalEnergy(energy);
+      }
+    };
+    fetchTotalEnergy();
+  }, [userId]);
+
+  useEffect(() => {
+    return () => {
+      if (energyUpdateInterval) {
+        clearInterval(energyUpdateInterval);
+      }
+    };
+  }, [energyUpdateInterval]);
+
+  useEffect(() => {
+    async function fetchYomiEnergy() {
+      if (userId) {
+        try {
+          const energy = await getYomiEnergy(userId as string);
+          setCurrentEnergy(energy);
+        } catch (error) {
+          console.error('Error fetching Yomi energy:', error);
+        }
+      }
+    }
+    fetchYomiEnergy();
+  }, [userId]);
+
+  useEffect(() => {
+    return () => {
+      stopAndUnloadRecording();
+    };
+  }, []);
+
+  const stopAndUnloadRecording = async () => {
+    if (recordingRef.current) {
+      try {
+        await recordingRef.current.stopAndUnloadAsync();
+      } catch (error) {
+        console.error('Error stopping recording:', error);
+      }
+      recordingRef.current = null;
+    }
   };
 
+  const handleBackPress = () => {
+    router.back();
+  };
+
+  const updateEnergyWhileReading = useCallback(() => {
+    if (isReading) {
+      setEnergyProgress(prev => {
+        const newProgress = prev + 1;
+        if (newProgress >= 10) {
+          // Energy gain every 10 seconds
+          setSessionEnergy(prevEnergy => prevEnergy + 10);
+          setRecentGain(10);
+          setTimeout(() => setRecentGain(0), 2000);
+          return 0;
+        }
+        return newProgress;
+      });
+    }
+  }, [isReading]);
+
+  useEffect(() => {
+    const interval = setInterval(updateEnergyWhileReading, 1000); // Update every second
+    return () => clearInterval(interval);
+  }, [updateEnergyWhileReading]);
+
   const handleStartReading = async () => {
-    console.log("Record button pressed");
     if (!hasPermission) {
-      console.log("No permission");
       Alert.alert(
         "Permission Required",
         "This app needs access to your microphone to record audio.",
@@ -60,62 +169,130 @@ const ReadingScreen = () => {
     }
 
     try {
-      console.log("Starting recording");
-      setIsRecording(true);
+      console.log('Starting reading and recording...');
       
-      console.log("Setting audio mode");
+      // Stop any existing recording
+      await stopAndUnloadRecording();
+
+      await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      console.log("Creating recording");
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
-      console.log("Recording started");
+      recordingRef.current = recording;
+
+      setIsReading(true);
+      setStartTime(new Date());
+      setSessionEnergy(0);
+      console.log('Reading and recording started');
       
-      // Record for 5 seconds (adjust as needed)
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      console.log("Stopping recording");
-      await recording.stopAndUnloadAsync();
-
-      console.log("Getting recording URI");
-      const uri = recording.getURI();
-      console.log("Recording URI:", uri);
-
-      if (uri) {
-        console.log("Fetching recording file");
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        const file = new File([blob], "audio.m4a", { type: "audio/m4a" });
-
-        console.log("Starting speech recognition");
-        await startSpeechRecognition(file, (text) => {
-          console.log('Transcription:', text);
-          setTranscript(text);
-        });
-      } else {
-        console.error('Recording URI is null');
-      }
-    } catch (error) {
-      console.error('Error in handleStartReading:', error);
-    } finally {
-      setIsRecording(false);
-      console.log("Recording process finished");
+      // Call your existing start reading logic here
+      // For example: startReadingSession();
+    } catch (err) {
+      console.error('Failed to start reading session', err);
+      setIsReading(false);
     }
   };
 
-  const handleStopReading = () => {
-    // If you implement a way to stop recording early, put that logic here
-    setIsRecording(false);
+  const handleStopReading = async () => {
+    console.log('Stopping reading and recording...');
+    setIsReading(false);
+
+    if (recordingRef.current) {
+      try {
+        await recordingRef.current.stopAndUnloadAsync();
+        const uri = recordingRef.current.getURI();
+        console.log('Recording stopped, uri:', uri);
+
+        if (!startTime) {
+          console.error("Start time was not set");
+          return;
+        }
+
+        const readingTimeMinutes = Math.round((Date.now() - startTime.getTime()) / 60000);
+        const readingPoints = readingTimeMinutes * 3;
+
+        // Here you would typically process the audio file to get the transcript
+        // For now, we'll use the existing transcript state
+        // setTranscript("Placeholder transcript");
+
+        // Call your existing stop reading logic here
+        // For example: await stopReadingSession();
+
+        router.push({
+          pathname: '/reading-results',
+          params: {
+            readingTime: `${readingTimeMinutes} min`,
+            readingPoints: readingPoints.toString(),
+            energy: totalEnergy.toString(),
+            audioUri: uri,
+            transcript: transcript,
+          },
+        });
+      } catch (error) {
+        console.error('Error stopping recording:', error);
+      } finally {
+        recordingRef.current = null;
+      }
+    } else {
+      console.error('No recording to stop');
+    }
+  };
+
+  const updateProgress = (text: string) => {
+    if (!currentStory) return;
+
+    const storyWords = currentStory.content.split(' ');
+    const spokenWords = text.split(' ');
+    let newCorrectWords = 0;
+
+    spokenWords.forEach((word, index) => {
+      if (word.toLowerCase() === storyWords[index]?.toLowerCase()) {
+        newCorrectWords++;
+      }
+    });
+
+    setCorrectWords(newCorrectWords);
+    const newProgress = (newCorrectWords / storyWords.length) * 100;
+
+    const energyGained = Math.round((newProgress - (correctWords / storyWords.length * 100)) / 10);
+    setSessionEnergy(prevEnergy => prevEnergy + energyGained);
+    setTotalEnergy(prevTotal => Math.min(prevTotal + energyGained, 100)); // Cap at 100
+
+    if (newProgress === 100) {
+      const completionBonus = 50;
+      setSessionEnergy(prevEnergy => prevEnergy + completionBonus);
+      setTotalEnergy(prevTotal => prevTotal + completionBonus);
+    }
+  };
+
+  const calculateWordsPerMinute = (words: number, startTime: Date, endTime: Date): number => {
+    const minutes = (endTime.getTime() - startTime.getTime()) / 60000;
+    return Math.round(words / minutes); // This will return an integer
+  };
+
+  const getYomiImage = (energy: number) => {
+    if (energy >= 80) return require('../assets/images/yomi-max-energy.png');
+    if (energy >= 60) return require('../assets/images/yomi-high-energy.png');
+    if (energy >= 40) return require('../assets/images/yomi-medium-energy.png');
+    if (energy >= 20) return require('../assets/images/yomi-low-energy.png');
+    return require('../assets/images/yomi-very-low-energy.png');
+  };
+
+  const pulseEnergy = () => {
+    Animated.sequence([
+      Animated.timing(energyPulse, { toValue: 1.3, duration: 200, useNativeDriver: true }),
+      Animated.timing(energyPulse, { toValue: 1, duration: 200, useNativeDriver: true })
+    ]).start();
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBackPress} style={styles.headerButton}>
             <ArrowLeft size={24} color={colors.text} />
@@ -126,18 +303,15 @@ const ReadingScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Character and Energy Bar */}
-        <View style={styles.characterContainer}>
-          <Image
-            source={require('../assets/images/yomi.png')}
-            style={styles.characterImage}
+        <View style={styles.energyDisplayContainer}>
+          <ReadingEnergyDisplay 
+            energy={totalEnergy} 
+            sessionEnergy={sessionEnergy}
+            recentGain={recentGain}
+            energyProgress={energyProgress}
           />
-          <View style={styles.energyBarContainer}>
-            <View style={styles.energyBar} />
-          </View>
         </View>
 
-        {/* Story Content */}
         <ScrollView style={styles.contentContainer}>
           {currentStory ? (
             <Text style={[styles.content, { fontSize }]}>
@@ -148,16 +322,30 @@ const ReadingScreen = () => {
           )}
         </ScrollView>
 
-        {/* Record Button */}
-        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-          <TouchableOpacity 
-            style={[styles.recordButton, isRecording && styles.recordingButton]}
-            onPress={() => console.log("Button pressed")}
-            disabled={!hasPermission}
-          >
-            <Mic size={24} color="white" />
-          </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity
+          style={styles.buttonContainer}
+          onPress={isReading ? handleStopReading : handleStartReading}
+        >
+          {isReading ? (
+            <View style={styles.stopButtonContainer}>
+              <Animated.View
+                style={[
+                  styles.pulseCircle,
+                  {
+                    transform: [{ scale: pulseAnim }],
+                  },
+                ]}
+              />
+              <View style={styles.stopButton}>
+                <Square color={colors.text} size={24} />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.startButton}>
+              <Square color={colors.primary} size={24} fill={colors.primary} />
+            </View>
+          )}
+        </TouchableOpacity>
 
         {transcript && (
           <View style={styles.transcriptContainer}>
@@ -194,48 +382,17 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  characterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  energyDisplayContainer: {
     marginBottom: layout.spacing,
-  },
-  characterImage: {
-    width: 48,
-    height: 48,
-    marginRight: layout.spacing,
-  },
-  energyBarContainer: {
-    flex: 1,
-    height: 12, // Increased thickness to match HomeScreen
-    backgroundColor: colors.background02,
-    borderRadius: 6, // Rounded edges
-    padding: 2, // Small padding
-  },
-  energyBar: {
-    width: '56%', // Match the width from HomeScreen
-    height: '100%',
-    backgroundColor: colors.yellowDark, // Changed to match HomeScreen
-    borderRadius: 4, // Rounded edges for the fill
   },
   contentContainer: {
     flex: 1,
   },
   content: {
     fontFamily: fonts.regular,
-    fontSize: 20, // Added this line
+    fontSize: 20,
     color: colors.text,
     lineHeight: 40,
-  },
-  recordButton: {
-    position: 'absolute',
-    bottom: 10, // Fixed distance from bottom
-    alignSelf: 'center', // This centers the button horizontally
-    backgroundColor: colors.primary,
-    borderRadius: 30,
-    width: 60,
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   transcriptContainer: {
     marginTop: layout.spacing,
@@ -248,8 +405,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  recordingButton: {
-    backgroundColor: 'red', // or any color you prefer for active recording
+  energyText: {
+    color: colors.yellowDark,
+    fontFamily: fonts.medium,
+    fontSize: 16,
+  },
+  recentGainText: {
+    position: 'absolute',
+    right: 10,
+    top: -20,
+    color: colors.yellowDark,
+    fontFamily: fonts.bold,
+    fontSize: 24,
+  },
+  buttonContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopButtonContainer: {
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulseCircle: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(209, 52, 56, 0.2)', // 20% opacity of #D13438
+  },
+  stopButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.error, // This will now be #D13438
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

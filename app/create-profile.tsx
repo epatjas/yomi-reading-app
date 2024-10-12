@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import ChooseAvatar from '../components/choose-avatar';
 import { createUserProfile } from '../services/userService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../supabase';
 
 const avatars = [
   { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar1.png' },
@@ -53,19 +55,19 @@ export default function CreateProfileScreen() {
 
       if (result) {
         console.log('Profile created successfully:', result);
-        router.push('/celebration');
+        await AsyncStorage.setItem('userId', result.id);
+        router.push({
+          pathname: '/celebration',
+          params: { userId: result.id }
+        });
       } else {
         console.log('Profile creation returned null');
-        Alert.alert("Error", "Failed to create profile. Please try again.");
+        Alert.alert("Error", "Failed to create profile. Please check your database connection and try again.");
       }
     } catch (error) {
       console.error('Error in handleStartReading:', error);
       if (error instanceof Error) {
-        if (error.message === 'USERNAME_TAKEN') {
-          Alert.alert("Username Taken", "This username is already in use. Please choose a different one.");
-        } else {
-          Alert.alert("Error", `An unexpected error occurred: ${error.message}`);
-        }
+        Alert.alert("Error", `Failed to create profile: ${error.message}`);
       } else {
         Alert.alert("Error", "An unknown error occurred. Please try again.");
       }

@@ -4,11 +4,21 @@ import { colors, fonts, layout } from '../styles/globalStyles';
 import { Play, ArrowLeft } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getStories, Story } from '../../services/storyService';
+import { getYomiEnergy } from '../../services/yomiEnergyService';
+
+const getYomiImage = (energy: number) => {
+  if (energy >= 80) return require('../../assets/images/yomi-max-energy.png');
+  if (energy >= 60) return require('../../assets/images/yomi-high-energy.png');
+  if (energy >= 40) return require('../../assets/images/yomi-medium-energy.png');
+  if (energy >= 20) return require('../../assets/images/yomi-low-energy.png');
+  return require('../../assets/images/yomi-very-low-energy.png');
+};
 
 export default function LibraryScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
   const [stories, setStories] = useState<Story[]>([]);
+  const [totalEnergy, setTotalEnergy] = useState(0);
 
   useEffect(() => {
     async function fetchStories() {
@@ -17,6 +27,16 @@ export default function LibraryScreen() {
     }
     fetchStories();
   }, []);
+
+  useEffect(() => {
+    async function fetchUserEnergy() {
+      if (userId) {
+        const energy = await getYomiEnergy(userId as string);
+        setTotalEnergy(energy);
+      }
+    }
+    fetchUserEnergy();
+  }, [userId]);
 
   const handleBookPress = (story: Story) => {
     router.push({
@@ -64,7 +84,7 @@ export default function LibraryScreen() {
         {/* Yomi speech bubble */}
         <View style={styles.speechBubble}>
           <Image
-            source={require('../../assets/images/yomi.png')}
+            source={getYomiImage(totalEnergy)}
             style={styles.yomiImage}
           />
           <View style={styles.bubbleContent}>

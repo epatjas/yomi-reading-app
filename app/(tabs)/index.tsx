@@ -3,7 +3,10 @@ import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView } fr
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { Zap, Percent } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getUserReadingHistory } from '../../services/userService';
+import { getUserReadingHistory, getUserTotalEnergy } from '../../services/userService';
+import { getYomiEnergy } from '../../services/yomiEnergyService';
+import YomiEnergyDisplay from '../../components/YomiEnergyDisplay';
+import YomiIcon from '../../assets/images/yomi-icon.png'; // Adjust this path as needed
 
 interface ReadingHistoryItem {
   id: string;
@@ -18,15 +21,41 @@ interface ReadingHistoryItem {
   };
 }
 
+const getYomiImage = (energy: number) => {
+  if (energy >= 80) return require('../../assets/images/yomi-max-energy.png');
+  if (energy >= 60) return require('../../assets/images/yomi-high-energy.png');
+  if (energy >= 40) return require('../../assets/images/yomi-medium-energy.png');
+  if (energy >= 20) return require('../../assets/images/yomi-low-energy.png');
+  return require('../../assets/images/yomi-very-low-energy.png');
+};
+
+const getYomiMessage = (energy: number) => {
+  if (energy >= 80) return { line1: "Yomi is happy!", line2: "Reading makes Yomi happy!" };
+  if (energy >= 60) return { line1: "Yomi wants attention.", line2: "Yomi wants a story!" };
+  if (energy >= 40) return { line1: "Yomi seems a bit sleepy.", line2: "Reading gives Yomi much energy." };
+  if (energy >= 20) return { line1: "Yomi needs your care.", line2: "Please read to Yomi." };
+  return { line1: "Yomi is very tired.", line2: "Yomi needs your care!" };
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
   const [lastReadStory, setLastReadStory] = useState<ReadingHistoryItem | null>(null);
+  const [totalEnergy, setTotalEnergy] = useState(0);
+  const [currentEnergy, setCurrentEnergy] = useState(0);
 
   useEffect(() => {
-    if (userId) {
-      fetchReadingHistory(userId as string);
+    async function fetchYomiEnergy() {
+      if (userId) {
+        try {
+          const energy = await getYomiEnergy(userId as string);
+          setCurrentEnergy(energy);
+        } catch (error) {
+          console.error('Error fetching Yomi energy:', error);
+        }
+      }
     }
+    fetchYomiEnergy();
   }, [userId]);
 
   const fetchReadingHistory = async (id: string) => {
@@ -75,12 +104,13 @@ export default function HomeScreen() {
             ) : (
               <>
                 <Image
-                  source={require('../../assets/images/yomi.png')}
+                  source={getYomiImage(totalEnergy)}
                   style={styles.yomiImage}
                 />
-                <Text style={styles.message}>
-                  Please read to me?{'\n'}Reading makes Yomi happy.
-                </Text>
+                <View style={styles.messageContainer}>
+                  <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line1}</Text>
+                  <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line2}</Text>
+                </View>
               </>
             )}
             <Pressable style={styles.readButton} onPress={handleReadPress}>
@@ -92,34 +122,10 @@ export default function HomeScreen() {
 
           {/* Energy level card */}
           <View style={styles.energyCard}>
-            <View style={styles.energyHeader}>
-              <Image
-                source={require('../../assets/images/yomi-small.png')}
-                style={styles.yomiSmall}
-              />
-              <View style={styles.energyIconContainer}>
-                <Zap
-                  size={24}
-                  color={colors.background}
-                />
-              </View>
-            </View>
-            <View style={styles.energyLevelContainer}>
-              <Text style={styles.energyLevel}>56</Text>
-              <View style={styles.energyLevelDetails}>
-                <View style={styles.energyPercent}>
-                  <Percent
-                    size={24}
-                    color={colors.background}
-                  />
-                </View>
-                <Text style={styles.energyText}>Energy level</Text>
-              </View>
-            </View>
-            <View style={styles.energyBar}>
-              <View style={[styles.energyFill, { width: '56%' }]} />
-            </View>
-            <Text style={styles.careText}>Care for Yomi</Text>
+            <YomiEnergyDisplay 
+              energy={currentEnergy} 
+              onStatusPress={() => console.log("Navigate to Yomi's status page")}
+            />
           </View>
         </View>
       </ScrollView>
@@ -287,5 +293,23 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  messageContainer: {
+    alignItems: 'center',
+    marginBottom: layout.spacing * 2,
+  },
+  messageLine: {
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  yomiLinkText: {
+    fontFamily: fonts.medium,
+    fontSize: 16,
+    color: colors.background,
+    textAlign: 'right',
+    textDecorationLine: 'underline',
   },
 });

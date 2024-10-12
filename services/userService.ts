@@ -16,50 +16,28 @@ export interface User {
 }
 
 export async function createUserProfile(username: string, avatarUrl: string): Promise<User | null> {
+  console.log('Attempting to create profile:', { username, avatarUrl });
   try {
-    console.log('Attempting to create profile:', { username, avatarUrl });
-    
-    // Check if username already exists
-    const { data: existingUser, error: checkError } = await supabase
+    const { data, error } = await supabase
       .from('users')
-      .select('username')
-      .eq('username', username)
+      .upsert({ username, avatar_url: avatarUrl })
+      .select()
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      // PGRST116 means no rows returned, which is what we want
-      console.error('Error checking existing user:', checkError);
-      throw checkError;
+    console.log('Supabase upsert response:', { data, error });
+
+    if (error) throw error;
+
+    if (!data) {
+      console.log('No data returned from upsert operation');
+      return null;
     }
 
-    if (existingUser) {
-      throw new Error('USERNAME_TAKEN');
-    }
-
-    // Proceed with profile creation
-    const { data: insertData, error: insertError } = await supabase
-      .from('users')
-      .insert({
-        username,
-        avatar_url: avatarUrl,
-        current_energy: 100,
-        max_energy: 100,
-        reading_points: 0,
-        evolution_stage: 'egg'
-      })
-      .single();
-
-    console.log('Insert response:', { insertData, insertError });
-
-    if (insertError) {
-      console.error('Insert error:', insertError);
-      throw insertError;
-    }
-
-    return insertData || null;
+    console.log('Profile created successfully:', data);
+    return data;
   } catch (error) {
     console.error('Error in createUserProfile:', error);
-    throw error; // Re-throw the error to be handled in the component
+    throw error;
   }
 }
 
@@ -138,5 +116,22 @@ export async function getUserReadingHistory(userId: string): Promise<any[]> {
   } catch (error) {
     console.error('Error fetching user reading history:', error);
     throw error;
+  }
+}
+
+export async function getUserTotalEnergy(userId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('total_energy')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+
+    return data?.total_energy || 0;
+  } catch (error) {
+    console.error('Error fetching user total energy:', error);
+    return 0;
   }
 }
