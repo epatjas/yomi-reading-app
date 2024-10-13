@@ -81,16 +81,8 @@ export default function LibraryScreen() {
           <View style={styles.headerRightPlaceholder} />
         </View>
 
-        {/* Yomi speech bubble */}
-        <View style={styles.speechBubble}>
-          <Image
-            source={getYomiImage(totalEnergy)}
-            style={styles.yomiImage}
-          />
-          <View style={styles.bubbleContent}>
-            <Text style={styles.yomiText}>What do you want to read?</Text>
-          </View>
-        </View>
+        {/* New title */}
+        <Text style={styles.pageTitle}>What do you want to read?</Text>
 
         {/* Book list */}
         <FlatList
@@ -131,31 +123,12 @@ const styles = StyleSheet.create({
   headerRightPlaceholder: {
     width: 40, // Match the width of the back button for centering
   },
-  speechBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: layout.spacing * 2,
-  },
-  yomiImage: {
-    width: 56,
-    height: 56,
-    marginRight: -20, // Overlap with the bubble
-    zIndex: 1,
-  },
-  bubbleContent: {
-    backgroundColor: colors.background02,
-    borderRadius: 16,
-    padding: layout.padding,
-    paddingLeft: layout.padding * 2, // Extra padding for Yomi image overlap
-    flex: 1,
-    borderWidth: 1,  // Add stroke
-    borderColor: colors.stroke, 
-    minHeight: 56, 
-  },
-  yomiText: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
+  pageTitle: {
+    fontFamily: fonts.medium,
+    fontSize: 20,
     color: colors.text,
+    marginBottom: layout.spacing * 2,
+    textAlign: 'left',
   },
   bookItem: {
     flexDirection: 'row',

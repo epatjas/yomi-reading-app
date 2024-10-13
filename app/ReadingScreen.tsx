@@ -10,18 +10,24 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import {
   saveReadingSessionToDatabase,
-  updateUserTotalEnergy,
-  ReadingSession
+  ReadingSession,
+  calculateWordsPerMinute,
+  calculateComprehension
 } from '../services/readingSessionsHelpers';
 import { getYomiEnergy, addReadingEnergy, addStoryCompletionBonus } from '../services/yomiEnergyService';
 import ReadingEnergyDisplay from '../components/ReadingEnergyDisplay';
+import { 
+  getUserTotalEnergy, 
+  updateUserEnergy, 
+  updateUserReadingPoints 
+} from '../services/userService';
 
 const ReadingScreen = () => {
   const [fontSize, setFontSize] = useState(24);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [stories, setStories] = useState<Story[]>([]);
   const [currentStory, setCurrentStory] = useState<Story | null>(null);
-  const { title, userId } = useLocalSearchParams<{ title?: string; userId?: string }>();
+  const { userId, title } = useLocalSearchParams<{ userId: string, title?: string }>();
   const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -39,6 +45,7 @@ const ReadingScreen = () => {
   const [isReading, setIsReading] = useState(false);
   const [energyProgress, setEnergyProgress] = useState(0);
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,8 +94,9 @@ const ReadingScreen = () => {
   useEffect(() => {
     const fetchTotalEnergy = async () => {
       if (userId) {
-        const energy = await getYomiEnergy(userId);
+        const energy = await getUserTotalEnergy(userId);
         setTotalEnergy(energy);
+        setCurrentEnergy(energy);
       }
     };
     fetchTotalEnergy();
@@ -118,19 +126,44 @@ const ReadingScreen = () => {
 
   useEffect(() => {
     return () => {
-      stopAndUnloadRecording();
+      if (recording) {
+        recording.stopAndUnloadAsync();
+      }
     };
   }, []);
 
-  const stopAndUnloadRecording = async () => {
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-      } catch (error) {
-        console.error('Error stopping recording:', error);
-      }
-      recordingRef.current = null;
+  const startRecording = async () => {
+    try {
+      console.log('Requesting permissions..');
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      console.log('Starting recording..');
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(recording);
+      console.log('Recording started');
+    } catch (err) {
+      console.error('Failed to start recording', err);
     }
+  };
+
+  const stopRecording = async () => {
+    console.log('Stopping recording..');
+    if (!recording) {
+      console.log('No recording to stop');
+      return;
+    }
+
+    setRecording(null);
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    console.log('Recording stopped and stored at', uri);
+    return uri;
   };
 
   const handleBackPress = () => {
@@ -172,18 +205,9 @@ const ReadingScreen = () => {
       console.log('Starting reading and recording...');
       
       // Stop any existing recording
-      await stopAndUnloadRecording();
+      await stopRecording();
 
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
+      await startRecording();
 
       setIsReading(true);
       setStartTime(new Date());
@@ -202,44 +226,63 @@ const ReadingScreen = () => {
     console.log('Stopping reading and recording...');
     setIsReading(false);
 
-    if (recordingRef.current) {
+    if (recording && startTime && currentStory && userId) {
+      if (typeof userId !== 'string') {
+        console.error('Invalid userId type');
+        return;
+      }
+
       try {
-        await recordingRef.current.stopAndUnloadAsync();
-        const uri = recordingRef.current.getURI();
-        console.log('Recording stopped, uri:', uri);
+        const audioUri = await stopRecording();
+        if (audioUri) {
+          console.log('Recording stopped, uri:', audioUri);
+          
+          const base64Audio = await FileSystem.readAsStringAsync(audioUri, { encoding: FileSystem.EncodingType.Base64 });
+          
+          await startSpeechRecognition(base64Audio, async (text) => {
+            console.log('Transcript received:', text);
+            setTranscript(text); // Keep this to save the transcript
+            
+            const endTime = new Date();
+            const readingTimeMinutes = (endTime.getTime() - startTime.getTime()) / 60000;
+            const readingPoints = Math.round(readingTimeMinutes);
 
-        if (!startTime) {
-          console.error("Start time was not set");
-          return;
+            // Calculate new energy
+            const currentEnergy = await getUserTotalEnergy(userId);
+            const energyGained = await addReadingEnergy(userId, readingTimeMinutes);
+            const newEnergy = Math.min(currentEnergy + energyGained, 100);
+
+            // Update user's energy and reading points
+            await updateUserEnergy(userId, newEnergy);
+            await updateUserReadingPoints(userId, readingPoints);
+
+            // Navigate to results screen
+            router.push({
+              pathname: '/reading-results',
+              params: {
+                readingTime: Math.round(readingTimeMinutes).toString(),
+                readingPoints: readingPoints.toString(),
+                energy: newEnergy.toString(),
+                audioUri: audioUri,
+                transcript: text,
+                userId: userId,
+              },
+            });
+          });
+        } else {
+          console.error('Failed to get audio URI from stopRecording');
+          // Handle this error case
         }
-
-        const readingTimeMinutes = Math.round((Date.now() - startTime.getTime()) / 60000);
-        const readingPoints = readingTimeMinutes * 3;
-
-        // Here you would typically process the audio file to get the transcript
-        // For now, we'll use the existing transcript state
-        // setTranscript("Placeholder transcript");
-
-        // Call your existing stop reading logic here
-        // For example: await stopReadingSession();
-
-        router.push({
-          pathname: '/reading-results',
-          params: {
-            readingTime: `${readingTimeMinutes} min`,
-            readingPoints: readingPoints.toString(),
-            energy: totalEnergy.toString(),
-            audioUri: uri,
-            transcript: transcript,
-          },
-        });
       } catch (error) {
-        console.error('Error stopping recording:', error);
-      } finally {
-        recordingRef.current = null;
+        console.error('Error stopping reading session:', error);
       }
     } else {
-      console.error('No recording to stop');
+      console.error('Missing required data to stop reading session', { 
+        hasRecording: !!recording, 
+        hasStartTime: !!startTime, 
+        hasCurrentStory: !!currentStory,
+        userId: userId,
+      });
     }
   };
 
@@ -268,11 +311,6 @@ const ReadingScreen = () => {
       setSessionEnergy(prevEnergy => prevEnergy + completionBonus);
       setTotalEnergy(prevTotal => prevTotal + completionBonus);
     }
-  };
-
-  const calculateWordsPerMinute = (words: number, startTime: Date, endTime: Date): number => {
-    const minutes = (endTime.getTime() - startTime.getTime()) / 60000;
-    return Math.round(words / minutes); // This will return an integer
   };
 
   const getYomiImage = (energy: number) => {
@@ -346,12 +384,6 @@ const ReadingScreen = () => {
             </View>
           )}
         </TouchableOpacity>
-
-        {transcript && (
-          <View style={styles.transcriptContainer}>
-            <Text style={styles.transcriptText}>{transcript}</Text>
-          </View>
-        )}
       </View>
     </SafeAreaView>
   );

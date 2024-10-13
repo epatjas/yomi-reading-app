@@ -5,7 +5,9 @@ import { CustomTabBar } from '../../components/CustomTabBar';
 export default function TabLayout() {
   return (
     <Tabs
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,  // This will hide the header for all tab screens
+      }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tabs.Screen

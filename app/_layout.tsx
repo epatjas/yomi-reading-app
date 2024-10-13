@@ -26,17 +26,14 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="welcome" options={{ headerShown: false }} />
-        <Stack.Screen name="create-profile" options={{ headerShown: false }} />
-        <Stack.Screen name="choose-avatar" options={{ headerShown: false }} />
-        <Stack.Screen name="celebration" options={{ headerShown: false }} />
-        <Stack.Screen name="select-profile" options={{ headerShown: false }} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-        <Stack.Screen name="ReadingScreen" options={{ headerShown: false }} />
-        <Stack.Screen name="ReadingResultsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="reading-results" options={{ headerShown: false }} />
+        {/* Add other non-tab screens here */}
       </Stack>
     </ThemeProvider>
   );

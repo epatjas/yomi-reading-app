@@ -5,26 +5,6 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export async function getUserTotalEnergy(userId: string): Promise<number> {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('current_energy')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user current energy:', error);
-      return 0;
-    }
-
-    return data?.current_energy || 0;
-  } catch (error) {
-    console.error('Unexpected error in getUserTotalEnergy:', error);
-    return 0;
-  }
-}
-
 export interface ReadingSession {
   user_id: string;
   story_id: string;
@@ -45,25 +25,6 @@ export async function saveReadingSessionToDatabase(session: ReadingSession): Pro
     console.log('Reading session saved successfully');
   } catch (error) {
     console.error('Error saving reading session:', error);
-    throw error;
-  }
-}
-
-export async function updateUserTotalEnergy(userId: string, newTotalEnergy: number): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update({ current_energy: newTotalEnergy })
-      .eq('id', userId);
-
-    if (error) {
-      console.error('Error updating user current energy:', error);
-      throw error;
-    }
-
-    console.log('User current energy updated successfully');
-  } catch (error) {
-    console.error('Unexpected error in updateUserTotalEnergy:', error);
     throw error;
   }
 }

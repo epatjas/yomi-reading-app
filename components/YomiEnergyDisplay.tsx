@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     width: '100%',
+    marginBottom: 12,
   },
   topRow: {
     flexDirection: 'row',
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
     height: 56,
   },
   energyIconContainer: {
-    backgroundColor: colors.yellowMedium,
+    backgroundColor: colors.yellowDark,
     borderRadius: 8,
     padding: 12,
   },

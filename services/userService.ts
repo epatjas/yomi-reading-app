@@ -64,6 +64,7 @@ export async function updateUserProfile(userId: string, updates: Partial<User>):
       .from('users')
       .update(updates)
       .eq('id', userId)
+      .select()
       .single();
 
     if (error) throw error;
@@ -123,15 +124,58 @@ export async function getUserTotalEnergy(userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('total_energy')
+      .select('current_energy')
       .eq('id', userId)
       .single();
 
     if (error) throw error;
 
-    return data?.total_energy || 0;
+    return data?.current_energy || 0;
   } catch (error) {
-    console.error('Error fetching user total energy:', error);
+    console.error('Error fetching user current energy:', error);
     return 0;
+  }
+}
+
+export async function updateUserEnergy(userId: string, newEnergy: number): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ current_energy: newEnergy })
+      .eq('id', userId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error updating user energy:', error);
+    throw error;
+  }
+}
+
+export async function updateUserReadingPoints(userId: string, pointsToAdd: number): Promise<void> {
+  try {
+    // First, get the current reading points
+    const { data: userData, error: fetchError } = await supabase
+      .from('users')
+      .select('reading_points')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (!userData) throw new Error('User not found');
+
+    const currentPoints = userData.reading_points || 0;
+    const newPoints = currentPoints + pointsToAdd;
+
+    // Then, update with the new total
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ reading_points: newPoints })
+      .eq('id', userId);
+
+    if (updateError) throw updateError;
+  } catch (error) {
+    console.error('Error updating user reading points:', error);
+    throw error;
   }
 }

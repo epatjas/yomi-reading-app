@@ -18,6 +18,8 @@ function isValidBase64(str: string) {
 
 export async function startSpeechRecognition(audioBase64: string, onTranscript: (text: string) => void) {
   try {
+    console.log("Starting speech recognition...");
+
     // Create a temporary file with the base64 content
     const tempFilePath = `${FileSystem.cacheDirectory}temp_audio.m4a`;
     await FileSystem.writeAsStringAsync(tempFilePath, audioBase64, { encoding: FileSystem.EncodingType.Base64 });
@@ -39,6 +41,8 @@ export async function startSpeechRecognition(audioBase64: string, onTranscript: 
     } as any);
     formData.append('model', 'whisper-1');
 
+    console.log("Sending request to OpenAI API...");
+
     // Use fetch to make the request
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
@@ -50,14 +54,18 @@ export async function startSpeechRecognition(audioBase64: string, onTranscript: 
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API response error:', errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const result = await response.json();
+    console.log("Received transcript:", result.text);
     onTranscript(result.text);
 
     // Clean up the temporary file
     await FileSystem.deleteAsync(tempFilePath);
+    console.log("Temporary file deleted");
   } catch (error) {
     console.error('Error in speech recognition:', error);
     throw error;

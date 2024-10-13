@@ -50,6 +50,7 @@ export default function HomeScreen() {
         try {
           const energy = await getYomiEnergy(userId as string);
           setCurrentEnergy(energy);
+          setTotalEnergy(energy); // Add this line
         } catch (error) {
           console.error('Error fetching Yomi energy:', error);
         }
@@ -70,7 +71,10 @@ export default function HomeScreen() {
   };
 
   const handleReadPress = () => {
-    router.push('/reading');
+    router.push({
+      pathname: '/reading',
+      params: { userId: userId as string }
+    });
   };
 
   return (
@@ -121,12 +125,10 @@ export default function HomeScreen() {
           </View>
 
           {/* Energy level card */}
-          <View style={styles.energyCard}>
-            <YomiEnergyDisplay 
-              energy={currentEnergy} 
-              onStatusPress={() => console.log("Navigate to Yomi's status page")}
-            />
-          </View>
+          <YomiEnergyDisplay 
+            energy={currentEnergy} 
+            onStatusPress={() => console.log("Navigate to Yomi's status page")}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
