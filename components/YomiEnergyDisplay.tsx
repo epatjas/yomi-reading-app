@@ -40,13 +40,11 @@ const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = ({ energy, onStatusP
         <Text style={styles.energyText}>Energy level</Text>
       </View>
       <View style={styles.energyBarContainer}>
-        <View style={[styles.energyBarFill, { width: `${energy}%` }]} />
-      </View>
-      <View style={styles.bottomRow}>
-        <Text style={styles.careText}>Care for Yomi</Text>
-        <TouchableOpacity onPress={onStatusPress}>
-          <Text style={styles.statusLink}>View Yomi's Status</Text>
-        </TouchableOpacity>
+        <View style={[
+          styles.energyBarFill, 
+          { width: `${energy}%` },
+          energy === 100 ? { borderRadius: 8 } : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
+        ]} />
       </View>
     </View>
   );
@@ -56,19 +54,25 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.yellowMedium,
     borderRadius: 16,
-    padding: 16,
+    padding: 20, // Increased from 16 to 20
+    paddingTop: 24, // Add extra padding to the top
+    paddingBottom: 24, // Add extra padding to the bottom
     width: '100%',
     marginBottom: 12,
+    // You can also add a fixed height if needed:
+    // height: 180, // Adjust this value as needed
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   yomiIcon: {
     width: 56,
-    height: 56,
+    height: undefined,
+    aspectRatio: 4/3, // Adjust this ratio to match your image's aspect ratio
+    resizeMode: 'contain',
   },
   energyIconContainer: {
     backgroundColor: colors.yellowDark,
@@ -78,7 +82,8 @@ const styles = StyleSheet.create({
   energyInfo: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 4,
+    marginBottom: 8, // Increased from 4 to 8
+    marginTop: 4, // Add some space above the energy info
   },
   energyNumber: {
     fontSize: 48,
@@ -100,28 +105,14 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: colors.background,
     borderRadius: 8,
-    marginBottom: 4,
+    marginBottom: 8,
+    marginTop: 4,
+    padding: 2, // Add this line to create space for the gap
   },
   energyBarFill: {
     height: '100%',
     backgroundColor: colors.yellowDark,
-    borderRadius: 8,
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  careText: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: colors.background,
-  },
-  statusLink: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: colors.background,
-    textDecorationLine: 'underline',
+    borderRadius: 8, // Slightly smaller than the container's borderRadius
   },
 });
 

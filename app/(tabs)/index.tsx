@@ -186,11 +186,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 100, // Adjust this value to move the content higher
     marginBottom: layout.spacing,
-    height: 360, // Increase the height to make it taller
+    height: 320, // Increase the height to make it taller
   },
   yomiImage: {
-    width: 120, // Reduced size
-    height: 120, // Reduced size
+    width: '40%', // Reduced width from 80% to 60%
+    height: undefined, // Allow height to adjust automatically
+    aspectRatio: 4/3, // Keep this ratio, or adjust if needed
+    resizeMode: 'contain', // Ensure the entire image fits within the container
     marginBottom: layout.spacing * 2,
   },
   message: {
