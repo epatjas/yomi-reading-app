@@ -11,6 +11,8 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "types": [
+      "node",
+      "jest",
       "expo-router/types"
     ],
     "jsx": "react-native",

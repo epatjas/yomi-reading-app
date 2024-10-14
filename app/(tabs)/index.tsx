@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { Zap, Percent } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getUserReadingHistory, getUserTotalEnergy } from '../../services/userService';
+import { getUserReadingHistory, getUserTotalEnergy, getUserProfile } from '../../services/userService';
 import { getYomiEnergy } from '../../services/yomiEnergyService';
 import YomiEnergyDisplay from '../../components/YomiEnergyDisplay';
-import YomiIcon from '../../assets/images/yomi-icon.png'; // Adjust this path as needed
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface ReadingHistoryItem {
   id: string;
@@ -19,6 +18,11 @@ interface ReadingHistoryItem {
     title: string;
     cover_image: string;
   };
+}
+
+interface UserProfile {
+  avatar_url?: string | string[];
+  // ... other properties
 }
 
 const getYomiImage = (energy: number) => {
@@ -37,26 +41,46 @@ const getYomiMessage = (energy: number) => {
   return { line1: "Yomi is very tired.", line2: "Yomi needs your care!" };
 };
 
+const getAvatarUrl = (profile: UserProfile | null): string | null => {
+  if (!profile || !profile.avatar_url) return null;
+  return Array.isArray(profile.avatar_url) ? profile.avatar_url[0] : profile.avatar_url;
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
   const [lastReadStory, setLastReadStory] = useState<ReadingHistoryItem | null>(null);
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [currentEnergy, setCurrentEnergy] = useState(0);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchYomiEnergy() {
-      if (userId) {
-        try {
-          const energy = await getYomiEnergy(userId as string);
-          setCurrentEnergy(energy);
-          setTotalEnergy(energy); // Add this line
-        } catch (error) {
-          console.error('Error fetching Yomi energy:', error);
+    async function fetchUserData() {
+      try {
+        const storedUserId = await AsyncStorage.getItem('userId');
+        const id = userId || storedUserId;
+        if (id) {
+          // Ensure id is a string before passing it to functions
+          const userId = Array.isArray(id) ? id[0] : id;
+          
+          const userProfile = await getUserProfile(userId);
+          setUserAvatar(getAvatarUrl(userProfile));
+          
+          try {
+            const energy = await getYomiEnergy(userId);
+            setCurrentEnergy(energy);
+            setTotalEnergy(energy);
+          } catch (error) {
+            console.error('Error fetching Yomi energy:', error);
+          }
+
+          fetchReadingHistory(userId);
         }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
       }
     }
-    fetchYomiEnergy();
+    fetchUserData();
   }, [userId]);
 
   const fetchReadingHistory = async (id: string) => {
@@ -84,7 +108,7 @@ export default function HomeScreen() {
           {/* Top right avatar */}
           <Pressable onPress={() => router.push('/profile')}>
             <Image
-              source={require('../../assets/images/avatar.png')}
+              source={userAvatar ? { uri: userAvatar } : require('../../assets/images/avatar.png')}
               style={styles.avatar}
             />
           </Pressable>
@@ -149,13 +173,9 @@ const styles = StyleSheet.create({
     paddingTop: 0, // Remove top padding
   },
   avatar: {
-    position: 'absolute',
-    top: layout.padding,
-    right: 0, // Align to the right edge of the container
-    width: 44,
-    height: 44,
-    borderRadius: 22, // Make it perfectly round
-    zIndex: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   mainContent: {
     backgroundColor: colors.background02,

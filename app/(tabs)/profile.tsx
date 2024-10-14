@@ -1,14 +1,67 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, SafeAreaView, Pressable } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { BookCheck, Timer, ArrowLeft, LineChart, Edit2 } from 'lucide-react-native';
+import { BookCheck, Timer, ArrowLeft, LineChart, Edit2, ArrowLeftRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import ChooseAvatar from '../../components/choose-avatar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserProfile, User } from '../../services/userService'; // Make sure this import is correct
+import { updateUserProfile } from '../../services/userService';
+
+// Add this interface at the top of your file
+interface UserProfile {
+  avatar_url?: string | string[];
+  name?: string;
+  // ... other properties
+}
+
+// Add this helper function
+const getAvatarUrl = (profile: UserProfile | null): string | null => {
+  if (!profile || !profile.avatar_url) return null;
+  return Array.isArray(profile.avatar_url) ? profile.avatar_url[0] : profile.avatar_url;
+};
+
+const avatars = [
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar1.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar2.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar3.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar4.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar5.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar6.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar7.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar8.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar9.png' }
+];
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState(0); // Assuming 0 is the default avatar
+  const [selectedAvatar, setSelectedAvatar] = useState(0);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('');
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchUserProfile() {
+      try {
+        const storedUserId = await AsyncStorage.getItem('userId');
+        if (storedUserId) {
+          setUserId(storedUserId);
+          const userProfile = await getUserProfile(storedUserId);
+          if (userProfile) {
+            setUserAvatar(userProfile.avatar_url);
+            setUserName(userProfile.username);
+            // Find the index of the current avatar in the avatars array
+            const avatarIndex = avatars.findIndex(avatar => avatar.uri === userProfile.avatar_url);
+            setSelectedAvatar(avatarIndex !== -1 ? avatarIndex : 0);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    }
+    fetchUserProfile();
+  }, []);
 
   const handleChangeAvatar = () => {
     setIsAvatarModalVisible(true);
@@ -18,10 +71,20 @@ export default function ProfileScreen() {
     setIsAvatarModalVisible(false);
   };
 
-  const handleSelectAvatar = (avatarIndex: number) => {
+  const handleSelectAvatar = async (avatarIndex: number) => {
     setSelectedAvatar(avatarIndex);
     setIsAvatarModalVisible(false);
-    // Here you can add logic to save the selected avatar
+    
+    const newAvatarUrl = avatars[avatarIndex].uri;
+    setUserAvatar(newAvatarUrl);
+
+    if (userId) {
+      try {
+        await updateUserProfile(userId, { avatar_url: newAvatarUrl });
+      } catch (error) {
+        console.error('Error updating user profile:', error);
+      }
+    }
   };
 
   const handleEditAvatar = () => {
@@ -37,15 +100,23 @@ export default function ProfileScreen() {
             <ArrowLeft size={24} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.headerRightPlaceholder} />
+          <Pressable onPress={() => router.push('/select-profile')} style={styles.switchProfileButton}>
+            <ArrowLeftRight size={24} color={colors.text} />
+          </Pressable>
+        </View>
+
+        <View style={styles.greetingContainer}>
+          <Text style={styles.greeting}>
+            Hei {userName}!
+          </Text>
         </View>
 
         <View style={styles.profileImageContainer}>
           <Image
-            source={require('../../assets/images/profile-image.png')}
+            source={userAvatar ? { uri: userAvatar } : avatars[selectedAvatar]}
             style={styles.profileImage}
           />
-          <Pressable style={styles.editAvatarButton} onPress={handleEditAvatar}>
+          <Pressable style={styles.editAvatarButton} onPress={() => setIsAvatarModalVisible(true)}>
             <Edit2 size={20} color={colors.text} />
           </Pressable>
         </View>
@@ -110,8 +181,17 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  headerRightPlaceholder: {
-    width: 40,
+  switchProfileButton: {
+    padding: 8,
+  },
+  greetingContainer: {
+    alignItems: 'flex-start',
+    marginBottom: layout.spacing,
+  },
+  greeting: {
+    fontFamily: fonts.regular,
+    fontSize: 20,
+    color: colors.text,
   },
   profileImageContainer: {
     position: 'relative',

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Image, StyleSheet, Modal, Dimensions } from 'react-native';
 import { colors, fonts, layout } from '../app/styles/globalStyles';
+import { supabase } from '../supabase'; // Make sure this import path is correct
 
 interface ChooseAvatarProps {
   isVisible: boolean;
@@ -9,15 +10,15 @@ interface ChooseAvatarProps {
 }
 
 const avatars = [
-  require('../assets/images/avatar1.png'),
-  require('../assets/images/avatar2.png'),
-  require('../assets/images/avatar3.png'),
-  require('../assets/images/avatar4.png'),
-  require('../assets/images/avatar5.png'),
-  require('../assets/images/avatar6.png'),
-  require('../assets/images/avatar7.png'),
-  require('../assets/images/avatar8.png'),
-  require('../assets/images/avatar9.png'),
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar1.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar2.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar3.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar4.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar5.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar6.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar7.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar8.png' },
+  { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar9.png' }
 ];
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
