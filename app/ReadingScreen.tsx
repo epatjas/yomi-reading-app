@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image, Animated, Alert } from 'react-native';
-import { MoreVertical, ArrowLeft, Mic, Square } from 'lucide-react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert } from 'react-native';
+import { MoreVertical, ArrowLeft, Square } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getStories, Story } from '../services/storyService';
@@ -10,11 +10,10 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import {
   saveReadingSessionToDatabase,
-  ReadingSession,
   calculateWordsPerMinute,
   calculateComprehension
 } from '../services/readingSessionsHelpers';
-import { getYomiEnergy, addReadingEnergy, addStoryCompletionBonus } from '../services/yomiEnergyService';
+import { getYomiEnergy, addReadingEnergy } from '../services/yomiEnergyService';
 import ReadingEnergyDisplay from '../components/ReadingEnergyDisplay';
 import { 
   getUserTotalEnergy, 
@@ -25,50 +24,50 @@ import {
 const ReadingScreen = () => {
   const [fontSize, setFontSize] = useState(24);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [stories, setStories] = useState<Story[]>([]);
   const [currentStory, setCurrentStory] = useState<Story | null>(null);
-  const { userId, title } = useLocalSearchParams<{ userId: string, title?: string }>();
+  const { userId, title } = useLocalSearchParams<{ userId: string; title?: string }>();
   const router = useRouter();
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState('');
   const [hasPermission, setHasPermission] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const [recordingObject, setRecordingObject] = useState<Audio.Recording | null>(null);
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [sessionEnergy, setSessionEnergy] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
-  const [correctWords, setCorrectWords] = useState(0);
-  const [currentEnergy, setCurrentEnergy] = useState(0);
-  const [energyUpdateInterval, setEnergyUpdateInterval] = useState<NodeJS.Timeout | null>(null);
-  const [energyPulse] = useState(new Animated.Value(1));
   const [recentGain, setRecentGain] = useState(0);
   const [isReading, setIsReading] = useState(false);
   const [energyProgress, setEnergyProgress] = useState(0);
-  const recordingRef = useRef<Audio.Recording | null>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      async function fetchAndSetStories() {
+  useEffect(() => {
+    if (!userId) {
+      console.error('userId is undefined');
+      Alert.alert('Error', 'User ID is missing. Please log in again.');
+      router.replace('/login'); // Assuming you have a login route
+      return;
+    }
+
+    async function initializeScreen() {
+      try {
+        const { status } = await Audio.requestPermissionsAsync();
+        setHasPermission(status === 'granted');
+
+        const energy = await getUserTotalEnergy(userId);
+        setTotalEnergy(energy);
+
         const fetchedStories = await getStories();
-        setStories(fetchedStories);
         if (fetchedStories.length > 0) {
           const story = title 
             ? fetchedStories.find(s => s.title === title) 
             : fetchedStories[0];
           setCurrentStory(story || fetchedStories[0]);
         }
+      } catch (error) {
+        console.error('Error initializing screen:', error);
+        Alert.alert('Error', 'Failed to initialize the reading screen. Please try again.');
       }
-      fetchAndSetStories();
-    }, [title])
-  );
+    }
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Audio.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+    initializeScreen();
+  }, [userId, title]);
 
   useEffect(() => {
     if (isReading) {
@@ -92,39 +91,6 @@ const ReadingScreen = () => {
   }, [isReading]);
 
   useEffect(() => {
-    const fetchTotalEnergy = async () => {
-      if (userId) {
-        const energy = await getUserTotalEnergy(userId);
-        setTotalEnergy(energy);
-        setCurrentEnergy(energy);
-      }
-    };
-    fetchTotalEnergy();
-  }, [userId]);
-
-  useEffect(() => {
-    return () => {
-      if (energyUpdateInterval) {
-        clearInterval(energyUpdateInterval);
-      }
-    };
-  }, [energyUpdateInterval]);
-
-  useEffect(() => {
-    async function fetchYomiEnergy() {
-      if (userId) {
-        try {
-          const energy = await getYomiEnergy(userId as string);
-          setCurrentEnergy(energy);
-        } catch (error) {
-          console.error('Error fetching Yomi energy:', error);
-        }
-      }
-    }
-    fetchYomiEnergy();
-  }, [userId]);
-
-  useEffect(() => {
     return () => {
       if (recording) {
         recording.stopAndUnloadAsync();
@@ -134,36 +100,51 @@ const ReadingScreen = () => {
 
   const startRecording = async () => {
     try {
-      console.log('Requesting permissions..');
-      await Audio.requestPermissionsAsync();
+      console.log('Starting recording..');
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('Audio recording permission not granted');
+        Alert.alert('Permission Required', 'This app needs access to your microphone to record audio.');
+        return null;
+      }
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      console.log('Starting recording..');
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
+      
       setRecording(recording);
       console.log('Recording started');
+      return recording;
     } catch (err) {
       console.error('Failed to start recording', err);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
+      return null;
     }
   };
 
   const stopRecording = async () => {
-    console.log('Stopping recording..');
     if (!recording) {
       console.log('No recording to stop');
-      return;
+      return null;
     }
 
-    setRecording(null);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    console.log('Recording stopped and stored at', uri);
-    return uri;
+    try {
+      console.log('Stopping recording..');
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      console.log('Recording stopped and stored at', uri);
+      setRecording(null);
+      return uri;
+    } catch (error) {
+      console.error('Failed to stop recording', error);
+      Alert.alert('Error', 'Failed to stop recording. Please try again.');
+      return null;
+    }
   };
 
   const handleBackPress = () => {
@@ -175,7 +156,6 @@ const ReadingScreen = () => {
       setEnergyProgress(prev => {
         const newProgress = prev + 1;
         if (newProgress >= 10) {
-          // Energy gain every 10 seconds
           setSessionEnergy(prevEnergy => prevEnergy + 10);
           setRecentGain(10);
           setTimeout(() => setRecentGain(0), 2000);
@@ -187,7 +167,7 @@ const ReadingScreen = () => {
   }, [isReading]);
 
   useEffect(() => {
-    const interval = setInterval(updateEnergyWhileReading, 1000); // Update every second
+    const interval = setInterval(updateEnergyWhileReading, 1000);
     return () => clearInterval(interval);
   }, [updateEnergyWhileReading]);
 
@@ -203,22 +183,19 @@ const ReadingScreen = () => {
 
     try {
       console.log('Starting reading and recording...');
-      
-      // Stop any existing recording
-      await stopRecording();
-
-      await startRecording();
-
-      setIsReading(true);
-      setStartTime(new Date());
-      setSessionEnergy(0);
-      console.log('Reading and recording started');
-      
-      // Call your existing start reading logic here
-      // For example: startReadingSession();
+      const newRecording = await startRecording();
+      if (newRecording) {
+        setIsReading(true);
+        setStartTime(new Date());
+        setSessionEnergy(0);
+        console.log('Reading and recording started');
+      } else {
+        throw new Error('Failed to start recording');
+      }
     } catch (err) {
       console.error('Failed to start reading session', err);
       setIsReading(false);
+      Alert.alert('Error', 'Failed to start reading session. Please try again.');
     }
   };
 
@@ -226,12 +203,19 @@ const ReadingScreen = () => {
     console.log('Stopping reading and recording...');
     setIsReading(false);
 
-    if (recording && startTime && currentStory && userId) {
-      if (typeof userId !== 'string') {
-        console.error('Invalid userId type');
-        return;
-      }
+    if (!userId) {
+      console.error('userId is undefined');
+      Alert.alert('Error', 'User ID is missing. Please try again.');
+      return;
+    }
 
+    if (!recording) {
+      console.error('No active recording found');
+      Alert.alert('Error', 'No active recording found. Please try again.');
+      return;
+    }
+
+    if (startTime && currentStory) {
       try {
         const audioUri = await stopRecording();
         if (audioUri) {
@@ -241,22 +225,18 @@ const ReadingScreen = () => {
           
           await startSpeechRecognition(base64Audio, async (text) => {
             console.log('Transcript received:', text);
-            setTranscript(text); // Keep this to save the transcript
             
             const endTime = new Date();
             const readingTimeMinutes = (endTime.getTime() - startTime.getTime()) / 60000;
             const readingPoints = Math.round(readingTimeMinutes);
 
-            // Calculate new energy
             const currentEnergy = await getUserTotalEnergy(userId);
             const energyGained = await addReadingEnergy(userId, readingTimeMinutes);
             const newEnergy = Math.min(currentEnergy + energyGained, 100);
 
-            // Update user's energy and reading points
             await updateUserEnergy(userId, newEnergy);
             await updateUserReadingPoints(userId, readingPoints);
 
-            // Navigate to results screen
             router.push({
               pathname: '/reading-results',
               params: {
@@ -270,11 +250,11 @@ const ReadingScreen = () => {
             });
           });
         } else {
-          console.error('Failed to get audio URI from stopRecording');
-          // Handle this error case
+          throw new Error('Failed to get audio URI from stopRecording');
         }
       } catch (error) {
         console.error('Error stopping reading session:', error);
+        Alert.alert('Error', 'An error occurred while processing your reading session. Please try again.');
       }
     } else {
       console.error('Missing required data to stop reading session', { 
@@ -283,49 +263,8 @@ const ReadingScreen = () => {
         hasCurrentStory: !!currentStory,
         userId: userId,
       });
+      Alert.alert('Error', 'Unable to complete the reading session. Please try again.');
     }
-  };
-
-  const updateProgress = (text: string) => {
-    if (!currentStory) return;
-
-    const storyWords = currentStory.content.split(' ');
-    const spokenWords = text.split(' ');
-    let newCorrectWords = 0;
-
-    spokenWords.forEach((word, index) => {
-      if (word.toLowerCase() === storyWords[index]?.toLowerCase()) {
-        newCorrectWords++;
-      }
-    });
-
-    setCorrectWords(newCorrectWords);
-    const newProgress = (newCorrectWords / storyWords.length) * 100;
-
-    const energyGained = Math.round((newProgress - (correctWords / storyWords.length * 100)) / 10);
-    setSessionEnergy(prevEnergy => prevEnergy + energyGained);
-    setTotalEnergy(prevTotal => Math.min(prevTotal + energyGained, 100)); // Cap at 100
-
-    if (newProgress === 100) {
-      const completionBonus = 50;
-      setSessionEnergy(prevEnergy => prevEnergy + completionBonus);
-      setTotalEnergy(prevTotal => prevTotal + completionBonus);
-    }
-  };
-
-  const getYomiImage = (energy: number) => {
-    if (energy >= 80) return require('../assets/images/yomi-max-energy.png');
-    if (energy >= 60) return require('../assets/images/yomi-high-energy.png');
-    if (energy >= 40) return require('../assets/images/yomi-medium-energy.png');
-    if (energy >= 20) return require('../assets/images/yomi-low-energy.png');
-    return require('../assets/images/yomi-very-low-energy.png');
-  };
-
-  const pulseEnergy = () => {
-    Animated.sequence([
-      Animated.timing(energyPulse, { toValue: 1.3, duration: 200, useNativeDriver: true }),
-      Animated.timing(energyPulse, { toValue: 1, duration: 200, useNativeDriver: true })
-    ]).start();
   };
 
   return (
