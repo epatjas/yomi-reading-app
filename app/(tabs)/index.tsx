@@ -176,6 +176,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    marginLeft: 'auto', // This will push the avatar to the right
   },
   mainContent: {
     backgroundColor: colors.background02,
@@ -335,5 +336,12 @@ const styles = StyleSheet.create({
     color: colors.background,
     textAlign: 'right',
     textDecorationLine: 'underline',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: layout.spacing,
+    paddingTop: layout.padding, // Add some top padding
   },
 });
