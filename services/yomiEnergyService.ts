@@ -3,14 +3,13 @@ import { supabase } from './readingSessionsHelpers';
 const INITIAL_ENERGY = 60;
 const MAX_ENERGY = 100;
 const MIN_ENERGY = 0;
-const ENERGY_DECAY_PER_HOUR = 5;
+const ENERGY_DECAY_PER_HOUR = 1;
 const ENERGY_GAIN_PER_10_SECONDS = 10;
-const STORY_COMPLETION_BONUS = 50;
 
 export async function initializeYomiEnergy(userId: string) {
   const { data, error } = await supabase
     .from('users')
-    .update({ energy: INITIAL_ENERGY, last_energy_update: new Date().toISOString() })
+    .update({ current_energy: INITIAL_ENERGY, last_energy_update: new Date().toISOString() })
     .eq('id', userId);
 
   if (error) throw error;
@@ -20,7 +19,7 @@ export async function initializeYomiEnergy(userId: string) {
 export async function getYomiEnergy(userId: string) {
   const { data, error } = await supabase
     .from('users')
-    .select('current_energy, max_energy, last_energy_update')
+    .select('current_energy, last_energy_update')
     .eq('id', userId)
     .single();
 
@@ -31,29 +30,46 @@ export async function getYomiEnergy(userId: string) {
 
   if (!data) return 0;
 
-  // Implement energy decay logic here if needed
-  // For now, just return the current_energy
-  return data.current_energy;
+  // Calculate energy decay
+  const lastUpdate = new Date(data.last_energy_update);
+  const now = new Date();
+  const hoursPassed = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+  const energyDecay = Math.floor(hoursPassed * ENERGY_DECAY_PER_HOUR);
+
+  let newEnergy = Math.max(MIN_ENERGY, data.current_energy - energyDecay);
+
+  // Update the energy if it has changed
+  if (newEnergy !== data.current_energy) {
+    await updateYomiEnergy(userId, newEnergy);
+  }
+
+  return newEnergy;
 }
 
 export async function updateYomiEnergy(userId: string, newEnergy: number) {
-  const energy = Math.min(100, Math.max(0, newEnergy)); // Ensure energy is between 0 and 100
+  console.log(`updateYomiEnergy called with newEnergy: ${newEnergy}`);
+  const energy = Math.min(MAX_ENERGY, Math.max(MIN_ENERGY, newEnergy));
+  console.log(`Energy after min/max check: ${energy}`);
   const { data, error } = await supabase
     .from('users')
     .update({ current_energy: energy, last_energy_update: new Date().toISOString() })
     .eq('id', userId);
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error in updateYomiEnergy:', error);
+    throw error;
+  }
+  console.log(`updateYomiEnergy returning: ${energy}`);
   return energy;
 }
 
-export async function addReadingEnergy(userId: string, readingDurationSeconds: number) {
-  const energyGain = Math.floor(readingDurationSeconds / 10) * ENERGY_GAIN_PER_10_SECONDS;
+export async function addReadingEnergy(userId: string, readingDurationMinutes: number) {
+  console.log(`addReadingEnergy called with readingDurationMinutes: ${readingDurationMinutes}`);
+  const energyGain = Math.floor(readingDurationMinutes * 6) * ENERGY_GAIN_PER_10_SECONDS;
+  console.log(`Calculated energyGain: ${energyGain}`);
   const currentEnergy = await getYomiEnergy(userId);
-  return updateYomiEnergy(userId, currentEnergy + energyGain);
-}
-
-export async function addStoryCompletionBonus(userId: string) {
-  const currentEnergy = await getYomiEnergy(userId);
-  return updateYomiEnergy(userId, currentEnergy + STORY_COMPLETION_BONUS);
+  console.log(`Current energy before update: ${currentEnergy}`);
+  const newEnergy = await updateYomiEnergy(userId, currentEnergy + energyGain);
+  console.log(`addReadingEnergy returning newEnergy: ${newEnergy}`);
+  return newEnergy;
 }

@@ -6,6 +6,7 @@ import { Audio, AVPlaybackStatus } from 'expo-av';
 import { colors, fonts, layout } from './styles/globalStyles';
 import YomiEnergyDisplay from '../components/YomiEnergyDisplay';
 import { LinearGradient, LinearGradientProps } from 'expo-linear-gradient';
+import { getYomiEnergy } from '../services/yomiEnergyService';
 
 // Add this utility function at the top of your file
 const formatTime = (milliseconds: number): string => {
@@ -167,7 +168,20 @@ const ReadingResultsScreen: React.FC = () => {
     transcript: string;
   }>();
 
+  console.log(`ReadingResultsScreen received energy: ${energy}`);
+
   const [showTranscript, setShowTranscript] = useState(false);
+  const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy));
+
+  useEffect(() => {
+    const fetchCurrentEnergy = async () => {
+      if (userId) {
+        const latestEnergy = await getYomiEnergy(userId);
+        setCurrentEnergy(latestEnergy);
+      }
+    };
+    fetchCurrentEnergy();
+  }, [userId]);
 
   const toggleTranscript = () => {
     setShowTranscript(!showTranscript);
@@ -205,7 +219,7 @@ const ReadingResultsScreen: React.FC = () => {
           </View>
           
           <YomiEnergyDisplay 
-            energy={parseInt(energy)} 
+            energy={currentEnergy} 
             onStatusPress={() => router.push('/yomi-status')}
           />
           

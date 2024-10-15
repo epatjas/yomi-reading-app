@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [currentEnergy, setCurrentEnergy] = useState(0);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [yomiEnergy, setYomiEnergy] = useState(0);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -70,6 +71,7 @@ export default function HomeScreen() {
             const energy = await getYomiEnergy(userId);
             setCurrentEnergy(energy);
             setTotalEnergy(energy);
+            setYomiEnergy(energy);
           } catch (error) {
             console.error('Error fetching Yomi energy:', error);
           }
@@ -153,7 +155,7 @@ export default function HomeScreen() {
 
           {/* Energy level card */}
           <YomiEnergyDisplay 
-            energy={currentEnergy} 
+            energy={yomiEnergy} 
             onStatusPress={() => console.log("Navigate to Yomi's status page")}
           />
         </View>

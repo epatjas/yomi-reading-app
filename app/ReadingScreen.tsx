@@ -230,9 +230,8 @@ const ReadingScreen = () => {
             const readingTimeMinutes = (endTime.getTime() - startTime.getTime()) / 60000;
             const readingPoints = Math.round(readingTimeMinutes);
 
-            const currentEnergy = await getUserTotalEnergy(userId);
-            const energyGained = await addReadingEnergy(userId, readingTimeMinutes);
-            const newEnergy = Math.min(currentEnergy + energyGained, 100);
+            const newEnergy = await addReadingEnergy(userId, readingTimeMinutes);
+            console.log(`Energy after reading session: ${newEnergy}`);
 
             await updateUserEnergy(userId, newEnergy);
             await updateUserReadingPoints(userId, readingPoints);

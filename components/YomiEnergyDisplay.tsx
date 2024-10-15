@@ -24,11 +24,18 @@ const getYomiImage = (energy: number) => {
 };
 
 const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = ({ energy, onStatusPress }) => {
+  console.log(`YomiEnergyDisplay received energy: ${energy}`);
+  
+  // Ensure energy is a number and within bounds
+  const displayEnergy = Math.min(100, Math.max(0, Number(energy) || 0));
+  
+  console.log(`YomiEnergyDisplay displaying energy: ${displayEnergy}`);
+
   return (
-    <View style={styles.container}>
+    <TouchableOpacity style={styles.container} onPress={onStatusPress}>
       <View style={styles.topRow}>
         <Image 
-          source={getYomiImage(energy)} 
+          source={getYomiImage(displayEnergy)} 
           style={styles.yomiIcon} 
         />
         <View style={styles.energyIconContainer}>
@@ -36,17 +43,17 @@ const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = ({ energy, onStatusP
         </View>
       </View>
       <View style={styles.energyInfo}>
-        <Text style={styles.energyNumber}>{energy}<Text style={styles.percentSign}>%</Text></Text>
+        <Text style={styles.energyNumber}>{displayEnergy}<Text style={styles.percentSign}>%</Text></Text>
         <Text style={styles.energyText}>Energy level</Text>
       </View>
       <View style={styles.energyBarContainer}>
         <View style={[
           styles.energyBarFill, 
-          { width: `${energy}%` },
-          energy === 100 ? { borderRadius: 8 } : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
+          { width: `${displayEnergy}%` },
+          displayEnergy === 100 ? { borderRadius: 8 } : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
         ]} />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -54,13 +61,11 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.yellowMedium,
     borderRadius: 16,
-    padding: 20, // Increased from 16 to 20
-    paddingTop: 24, // Add extra padding to the top
-    paddingBottom: 24, // Add extra padding to the bottom
+    padding: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
     width: '100%',
     marginBottom: 12,
-    // You can also add a fixed height if needed:
-    // height: 180, // Adjust this value as needed
   },
   topRow: {
     flexDirection: 'row',
@@ -71,7 +76,7 @@ const styles = StyleSheet.create({
   yomiIcon: {
     width: 56,
     height: undefined,
-    aspectRatio: 4/3, // Adjust this ratio to match your image's aspect ratio
+    aspectRatio: 4/3,
     resizeMode: 'contain',
   },
   energyIconContainer: {
@@ -82,8 +87,8 @@ const styles = StyleSheet.create({
   energyInfo: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 8, // Increased from 4 to 8
-    marginTop: 4, // Add some space above the energy info
+    marginBottom: 8,
+    marginTop: 4,
   },
   energyNumber: {
     fontSize: 48,
@@ -107,12 +112,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
     marginTop: 4,
-    padding: 2, // Add this line to create space for the gap
+    padding: 2,
   },
   energyBarFill: {
     height: '100%',
     backgroundColor: colors.yellowDark,
-    borderRadius: 8, // Slightly smaller than the container's borderRadius
+    borderRadius: 8,
   },
 });
 
