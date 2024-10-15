@@ -280,10 +280,12 @@ const ReadingScreen = () => {
             console.log('Transcript received:', text);
             
             const endTime = new Date();
-            const readingTimeMinutes = (endTime.getTime() - startTime.getTime()) / 60000;
-            const readingPoints = Math.round(readingTimeMinutes);
+            const readingTimeSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+            const readingPoints = Math.floor(readingTimeSeconds / 10) * 10;
+            console.log(`Reading time: ${readingTimeSeconds} seconds`);
+            console.log(`Reading points: ${readingPoints}`);
 
-            const newEnergy = await addReadingEnergy(userId, readingTimeMinutes);
+            const newEnergy = await addReadingEnergy(userId, readingTimeSeconds / 60);
             console.log(`Energy after reading session: ${newEnergy}`);
 
             await updateUserEnergy(userId, newEnergy);
@@ -292,7 +294,7 @@ const ReadingScreen = () => {
             router.push({
               pathname: '/reading-results',
               params: {
-                readingTime: Math.round(readingTimeMinutes).toString(),
+                readingTime: Math.round(readingTimeSeconds / 60).toString(),
                 readingPoints: readingPoints.toString(),
                 energy: newEnergy.toString(),
                 audioUri: audioUri,

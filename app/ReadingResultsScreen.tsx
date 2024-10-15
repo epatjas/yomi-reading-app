@@ -169,6 +169,7 @@ const ReadingResultsScreen: React.FC = () => {
   }>();
 
   console.log(`ReadingResultsScreen received energy: ${energy}`);
+  console.log(`Received reading points: ${readingPoints}`);
 
   const [showTranscript, setShowTranscript] = useState(false);
   const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy));
