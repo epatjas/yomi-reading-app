@@ -199,3 +199,20 @@ export async function getTotalReadingTime(userId: string): Promise<number> {
     throw error;
   }
 }
+
+export async function getTotalReadingPoints(userId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('reading_sessions')
+      .select('energy_gained')
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    const totalPoints = data.reduce((sum, session) => sum + (session.energy_gained || 0), 0);
+    return totalPoints;
+  } catch (error) {
+    console.error('Error fetching total reading points:', error);
+    throw error;
+  }
+}

@@ -5,7 +5,7 @@ import { BookCheck, Timer, ArrowLeft, LineChart, Edit2, ArrowLeftRight } from 'l
 import { useRouter } from 'expo-router';
 import ChooseAvatar from '../../components/choose-avatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserProfile, User, getTotalReadingTime } from '../../services/userService'; // Make sure this import is correct
+import { getUserProfile, User, getTotalReadingTime, getTotalReadingPoints } from '../../services/userService'; // Make sure this import is correct
 import { updateUserProfile } from '../../services/userService';
 
 // Add this interface at the top of your file
@@ -41,6 +41,7 @@ export default function ProfileScreen() {
   const [userName, setUserName] = useState<string>('');
   const [userId, setUserId] = useState<string | null>(null);
   const [totalReadingTime, setTotalReadingTime] = useState(0);
+  const [totalReadingPoints, setTotalReadingPoints] = useState(0);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -58,8 +59,11 @@ export default function ProfileScreen() {
           
           // Fetch total reading time
           const totalTime = await getTotalReadingTime(storedUserId);
-          console.log('Fetched total reading time:', totalTime); // Add this log
           setTotalReadingTime(totalTime);
+
+          // Fetch total reading points
+          const totalPoints = await getTotalReadingPoints(storedUserId);
+          setTotalReadingPoints(totalPoints);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -143,7 +147,7 @@ export default function ProfileScreen() {
               <BookCheck size={24} color={colors.background} />
             </View>
             <View>
-              <Text style={styles.statValue}>1200</Text>
+              <Text style={styles.statValue}>{totalReadingPoints}</Text>
               <Text style={styles.statLabel}>Reading points</Text>
             </View>
           </View>
