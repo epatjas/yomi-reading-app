@@ -1,17 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert } from 'react-native';
 import { MoreVertical, ArrowLeft, Square } from 'lucide-react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getStories, Story } from '../services/storyService';
-import { useFocusEffect } from '@react-navigation/native';
 import { startSpeechRecognition } from '../services/speechRecognitionService';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import {
   saveReadingSessionToDatabase,
-  calculateWordsPerMinute,
-  calculateComprehension
 } from '../services/readingSessionsHelpers';
 import { getYomiEnergy, addReadingEnergy } from '../services/yomiEnergyService';
 import ReadingEnergyDisplay from '../components/ReadingEnergyDisplay';
@@ -20,6 +17,8 @@ import {
   updateUserEnergy, 
   updateUserReadingPoints 
 } from '../services/userService';
+
+let globalRecording: Audio.Recording | null = null;
 
 const ReadingScreen = () => {
   const [fontSize, setFontSize] = useState(24);
@@ -35,13 +34,13 @@ const ReadingScreen = () => {
   const [recentGain, setRecentGain] = useState(0);
   const [isReading, setIsReading] = useState(false);
   const [energyProgress, setEnergyProgress] = useState(0);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
     if (!userId) {
       console.error('userId is undefined');
       Alert.alert('Error', 'User ID is missing. Please log in again.');
-      router.replace('/login'); // Assuming you have a login route
+      router.replace('/login');
       return;
     }
 
@@ -92,53 +91,107 @@ const ReadingScreen = () => {
 
   useEffect(() => {
     return () => {
-      if (recording) {
-        recording.stopAndUnloadAsync();
+      if (recordingRef.current) {
+        console.log('Component unmounting, stopping any active recording');
+        recordingRef.current.stopAndUnloadAsync().catch(console.error);
+        recordingRef.current = null;
+      }
+      if (globalRecording) {
+        console.log('Component unmounting, releasing global recording');
+        globalRecording = null;
       }
     };
   }, []);
 
-  const startRecording = async () => {
-    try {
-      console.log('Starting recording..');
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.error('Audio recording permission not granted');
-        Alert.alert('Permission Required', 'This app needs access to your microphone to record audio.');
-        return null;
-      }
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        if (recordingRef.current) {
+          console.log('Screen losing focus, stopping any active recording');
+          recordingRef.current.stopAndUnloadAsync().catch(console.error);
+          recordingRef.current = null;
+        }
+      };
+    }, [])
+  );
 
+  const forceReleaseExistingRecordings = async () => {
+    console.log('Forcefully releasing any existing recordings');
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: false,
+        staysActiveInBackground: false,
+      });
+      await new Promise(resolve => setTimeout(resolve, 200));
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
       });
+      console.log('Audio mode reset successfully');
+    } catch (error) {
+      console.error('Error resetting audio mode:', error);
+    }
+  };
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+  const reinitializeAudioAPI = async () => {
+    console.log('Reinitializing Audio API');
+    try {
+      await Audio.setIsEnabledAsync(false);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await Audio.setIsEnabledAsync(true);
+      console.log('Audio API reinitialized successfully');
+    } catch (error) {
+      console.error('Failed to reinitialize Audio API:', error);
+    }
+  };
+
+  const createRecordingObject = async () => {
+    console.log('Creating recording object');
+    const { recording } = await Audio.Recording.createAsync(
+      Audio.RecordingOptionsPresets.HIGH_QUALITY
+    );
+    globalRecording = recording;
+    console.log('Recording object created successfully');
+  };
+
+  const startRecording = async () => {
+    console.log('Entering startRecording function');
+    try {
+      await forceReleaseExistingRecordings();
+      await reinitializeAudioAPI();
+      await createRecordingObject();
       
-      setRecording(recording);
-      console.log('Recording started');
-      return recording;
+      if (globalRecording) {
+        console.log('Starting recording');
+        await globalRecording.startAsync();
+        recordingRef.current = globalRecording;
+        console.log('Recording started successfully');
+        return globalRecording;
+      } else {
+        throw new Error('Failed to create recording object');
+      }
     } catch (err) {
-      console.error('Failed to start recording', err);
+      console.error('Error in startRecording:', err);
       Alert.alert('Error', 'Failed to start recording. Please try again.');
       return null;
     }
   };
 
   const stopRecording = async () => {
-    if (!recording) {
+    if (!recordingRef.current) {
       console.log('No recording to stop');
       return null;
     }
 
     try {
       console.log('Stopping recording..');
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
       console.log('Recording stopped and stored at', uri);
-      setRecording(null);
+      recordingRef.current = null;
+      globalRecording = null;  // Reset the global recording object
       return uri;
     } catch (error) {
       console.error('Failed to stop recording', error);
@@ -182,13 +235,13 @@ const ReadingScreen = () => {
     }
 
     try {
-      console.log('Starting reading and recording...');
+      console.log('Starting reading session...');
       const newRecording = await startRecording();
       if (newRecording) {
         setIsReading(true);
         setStartTime(new Date());
         setSessionEnergy(0);
-        console.log('Reading and recording started');
+        console.log('Reading and recording started successfully');
       } else {
         throw new Error('Failed to start recording');
       }
@@ -209,7 +262,7 @@ const ReadingScreen = () => {
       return;
     }
 
-    if (!recording) {
+    if (!recordingRef.current) {
       console.error('No active recording found');
       Alert.alert('Error', 'No active recording found. Please try again.');
       return;
@@ -257,7 +310,7 @@ const ReadingScreen = () => {
       }
     } else {
       console.error('Missing required data to stop reading session', { 
-        hasRecording: !!recording, 
+        hasRecording: !!recordingRef.current, 
         hasStartTime: !!startTime, 
         hasCurrentStory: !!currentStory,
         userId: userId,
