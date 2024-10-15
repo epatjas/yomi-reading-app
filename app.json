@@ -41,6 +41,7 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "entryPoint": "./app/_layout.tsx"
   }
 }

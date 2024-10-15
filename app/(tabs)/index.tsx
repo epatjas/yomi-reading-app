@@ -75,6 +75,9 @@ export default function HomeScreen() {
           }
 
           fetchReadingHistory(userId);
+        } else {
+          // If no userId is found, redirect to the select profile screen
+          router.replace('/select-profile');
         }
       } catch (error) {
         console.error('Error fetching user data:', error);

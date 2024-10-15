@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, FlatList, Dimen
 import { useRouter } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getUserProfiles, getUserReadingHistory } from '../services/userService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Profile = {
   id: string;
@@ -33,27 +34,17 @@ export default function SelectProfileScreen() {
 
   const handleSelectProfile = async (profile: Profile) => {
     try {
-      const readingHistory = await getUserReadingHistory(profile.id);
-      if (readingHistory && readingHistory.length > 0) {
-        // User has reading history, navigate to the home screen with the profile ID
-        router.push({
-          pathname: '/(tabs)',
-          params: { userId: profile.id }
-        });
-      } else {
-        // User hasn't read anything yet, navigate to the reading selection screen with the profile ID
-        router.push({
-          pathname: '/(tabs)/reading',
-          params: { userId: profile.id }
-        });
-      }
-    } catch (error) {
-      console.error('Error checking reading history:', error);
-      // In case of error, default to the reading selection screen with the profile ID
+      // Store the selected user ID in AsyncStorage
+      await AsyncStorage.setItem('userId', profile.id);
+
+      // Navigate to the home screen (index.tsx) with the profile ID
       router.push({
-        pathname: '/(tabs)/reading',
+        pathname: '/(tabs)',
         params: { userId: profile.id }
       });
+    } catch (error) {
+      console.error('Error selecting profile:', error);
+      // In case of error, you might want to show an error message to the user
     }
   };
 
