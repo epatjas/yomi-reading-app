@@ -171,6 +171,14 @@ const ReadingResultsScreen: React.FC = () => {
   console.log(`ReadingResultsScreen received energy: ${energy}`);
   console.log(`Received reading points: ${readingPoints}`);
 
+  // Convert reading time from seconds to minutes and seconds
+  const readingTimeSeconds = readingTime ? parseInt(readingTime) : 0;
+  const readingTimeMinutes = Math.floor(readingTimeSeconds / 60);
+  const readingTimeRemainingSeconds = readingTimeSeconds % 60;
+
+  console.log(`Received readingTime: ${readingTimeSeconds} seconds`);
+  console.log(`Calculated readingTimeMinutes: ${readingTimeMinutes} minutes and ${readingTimeRemainingSeconds} seconds`);
+
   const [showTranscript, setShowTranscript] = useState(false);
   const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy));
 
@@ -203,8 +211,7 @@ const ReadingResultsScreen: React.FC = () => {
                 <Clock color={colors.background} size={24} />
               </View>
               <Text style={styles.statValue}>
-                {readingTime ? parseInt(readingTime) : 0}
-                <Text style={styles.statUnit}> min</Text>
+                {readingTimeMinutes}:{readingTimeRemainingSeconds.toString().padStart(2, '0')}
               </Text>
               <Text style={styles.statLabel}>Reading time</Text>
             </View>
@@ -320,12 +327,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.greenDark,
   },
   statValue: {
-    fontSize: 48,
+    fontSize: 36, // Slightly smaller to fit both minutes and seconds
     fontFamily: fonts.regular,
     color: colors.background,
     marginBottom: 4,
-    marginTop: 40, // Add top margin to push content below the icon
-    textAlign: 'left', // Center the text horizontally
+    marginTop: 40,
+    textAlign: 'left',
   },
   statUnit: {
     fontSize: 16,

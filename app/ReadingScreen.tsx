@@ -298,10 +298,12 @@ const ReadingScreen = () => {
             await updateUserEnergy(userId, newEnergy);
             await updateUserReadingPoints(userId, readingPoints);
 
+            console.log(`Sending readingTime: ${Math.round(readingTimeSeconds)} seconds`);
+
             router.push({
               pathname: '/reading-results',
               params: {
-                readingTime: Math.round(readingTimeSeconds / 60).toString(),
+                readingTime: Math.round(readingTimeSeconds).toString(),
                 readingPoints: readingPoints.toString(),
                 energy: newEnergy.toString(),
                 audioUri: audioUri,
