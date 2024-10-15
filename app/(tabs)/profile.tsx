@@ -5,7 +5,7 @@ import { BookCheck, Timer, ArrowLeft, LineChart, Edit2, ArrowLeftRight } from 'l
 import { useRouter } from 'expo-router';
 import ChooseAvatar from '../../components/choose-avatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserProfile, User } from '../../services/userService'; // Make sure this import is correct
+import { getUserProfile, User, getTotalReadingTime } from '../../services/userService'; // Make sure this import is correct
 import { updateUserProfile } from '../../services/userService';
 
 // Add this interface at the top of your file
@@ -40,9 +40,10 @@ export default function ProfileScreen() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [totalReadingTime, setTotalReadingTime] = useState(0);
 
   useEffect(() => {
-    async function fetchUserProfile() {
+    async function fetchUserData() {
       try {
         const storedUserId = await AsyncStorage.getItem('userId');
         if (storedUserId) {
@@ -51,16 +52,20 @@ export default function ProfileScreen() {
           if (userProfile) {
             setUserAvatar(userProfile.avatar_url);
             setUserName(userProfile.username);
-            // Find the index of the current avatar in the avatars array
             const avatarIndex = avatars.findIndex(avatar => avatar.uri === userProfile.avatar_url);
             setSelectedAvatar(avatarIndex !== -1 ? avatarIndex : 0);
           }
+          
+          // Fetch total reading time
+          const totalTime = await getTotalReadingTime(storedUserId);
+          console.log('Fetched total reading time:', totalTime); // Add this log
+          setTotalReadingTime(totalTime);
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('Error fetching user data:', error);
       }
     }
-    fetchUserProfile();
+    fetchUserData();
   }, []);
 
   const handleChangeAvatar = () => {
@@ -89,6 +94,13 @@ export default function ProfileScreen() {
 
   const handleEditAvatar = () => {
     setIsAvatarModalVisible(true);
+  };
+
+  // Helper function to format seconds into hours and minutes
+  const formatReadingTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours}h ${minutes}min`;
   };
 
   return (
@@ -140,7 +152,7 @@ export default function ProfileScreen() {
               <Timer size={24} color={colors.background} />
             </View>
             <View>
-              <Text style={styles.statValue}>16h 24min</Text>
+              <Text style={styles.statValue}>{formatReadingTime(totalReadingTime)}</Text>
               <Text style={styles.statLabel}>Time spent reading</Text>
             </View>
           </View>

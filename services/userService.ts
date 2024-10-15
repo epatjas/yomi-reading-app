@@ -179,3 +179,23 @@ export async function updateUserReadingPoints(userId: string, pointsToAdd: numbe
     throw error;
   }
 }
+
+export async function getTotalReadingTime(userId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('reading_sessions')
+      .select('duration')
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    console.log('Reading sessions data:', data); // Add this log
+
+    const totalSeconds = data.reduce((sum, session) => sum + (session.duration || 0), 0);
+    console.log('Total reading time (seconds):', totalSeconds); // Add this log
+    return totalSeconds;
+  } catch (error) {
+    console.error('Error fetching total reading time:', error);
+    throw error;
+  }
+}

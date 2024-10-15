@@ -11,7 +11,6 @@ export interface ReadingSession {
   start_time: Date;
   end_time: Date;
   duration: number; // This should be an integer (seconds)
-  words_per_minute: number; // This should be an integer
   energy_gained: number; // This should be an integer
 }
 

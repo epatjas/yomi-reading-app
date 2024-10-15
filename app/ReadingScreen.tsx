@@ -9,6 +9,7 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import {
   saveReadingSessionToDatabase,
+  ReadingSession
 } from '../services/readingSessionsHelpers';
 import { getYomiEnergy, addReadingEnergy } from '../services/yomiEnergyService';
 import ReadingEnergyDisplay from '../components/ReadingEnergyDisplay';
@@ -260,22 +261,7 @@ const ReadingScreen = () => {
   };
 
   const handleStopReading = async () => {
-    console.log('Stopping reading and recording...');
-    setIsReading(false);
-
-    if (!userId) {
-      console.error('userId is undefined');
-      Alert.alert('Error', 'User ID is missing. Please try again.');
-      return;
-    }
-
-    if (!recordingRef.current) {
-      console.error('No active recording found');
-      Alert.alert('Error', 'No active recording found. Please try again.');
-      return;
-    }
-
-    if (startTime && currentStory) {
+    if (startTime && currentStory && userId) {
       try {
         const audioUri = await stopRecording();
         if (audioUri) {
@@ -287,7 +273,7 @@ const ReadingScreen = () => {
             console.log('Transcript received:', text);
             
             const endTime = new Date();
-            const readingTimeSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+            const readingTimeSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
             const readingPoints = Math.floor(readingTimeSeconds / 10) * 10;
             console.log(`Reading time: ${readingTimeSeconds} seconds`);
             console.log(`Reading points: ${readingPoints}`);
@@ -299,6 +285,23 @@ const ReadingScreen = () => {
             await updateUserReadingPoints(userId, readingPoints);
 
             console.log(`Sending readingTime: ${Math.round(readingTimeSeconds)} seconds`);
+
+            // Create a ReadingSession object
+            const session: ReadingSession = {
+              user_id: userId,
+              story_id: currentStory.id,
+              start_time: startTime,
+              end_time: endTime,
+              duration: readingTimeSeconds,
+              energy_gained: readingPoints
+            };
+
+            console.log('Saving reading session:', session); // Add this log
+
+            // Save the reading session
+            await saveReadingSessionToDatabase(session);
+
+            console.log('Reading session saved successfully'); // Add this log
 
             router.push({
               pathname: '/reading-results',
@@ -316,12 +319,11 @@ const ReadingScreen = () => {
           throw new Error('Failed to get audio URI from stopRecording');
         }
       } catch (error) {
-        console.error('Error stopping reading session:', error);
-        Alert.alert('Error', 'An error occurred while processing your reading session. Please try again.');
+        console.error('Error in handleStopReading:', error);
+        Alert.alert('Error', 'Failed to complete the reading session. Please try again.');
       }
     } else {
       console.error('Missing required data to stop reading session', { 
-        hasRecording: !!recordingRef.current, 
         hasStartTime: !!startTime, 
         hasCurrentStory: !!currentStory,
         userId: userId,
