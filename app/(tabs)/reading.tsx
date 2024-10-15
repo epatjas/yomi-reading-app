@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { Play, ArrowLeft } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -68,6 +68,19 @@ export default function LibraryScreen() {
       <Play size={20} color={colors.primary} />
     </Pressable>
   );
+
+  const handleStorySelection = (storyId: string) => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID is missing. Please log in again.');
+      router.replace('/login');
+      return;
+    }
+    
+    router.push({
+      pathname: '/reading',
+      params: { storyId, userId }
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>

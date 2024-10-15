@@ -24,7 +24,7 @@ const ReadingScreen = () => {
   const [fontSize, setFontSize] = useState(24);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStory, setCurrentStory] = useState<Story | null>(null);
-  const { userId, title } = useLocalSearchParams<{ userId: string; title?: string }>();
+  const { userId, storyId } = useLocalSearchParams<{ userId: string, storyId: string }>();
   const router = useRouter();
   const [hasPermission, setHasPermission] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -35,6 +35,13 @@ const ReadingScreen = () => {
   const [isReading, setIsReading] = useState(false);
   const [energyProgress, setEnergyProgress] = useState(0);
   const recordingRef = useRef<Audio.Recording | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID is missing. Please log in again.');
+      router.replace('/login');
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -54,8 +61,8 @@ const ReadingScreen = () => {
 
         const fetchedStories = await getStories();
         if (fetchedStories.length > 0) {
-          const story = title 
-            ? fetchedStories.find(s => s.title === title) 
+          const story = storyId 
+            ? fetchedStories.find(s => s.id === storyId) 
             : fetchedStories[0];
           setCurrentStory(story || fetchedStories[0]);
         }
@@ -66,7 +73,7 @@ const ReadingScreen = () => {
     }
 
     initializeScreen();
-  }, [userId, title]);
+  }, [userId, storyId]);
 
   useEffect(() => {
     if (isReading) {
