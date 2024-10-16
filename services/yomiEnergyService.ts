@@ -36,7 +36,7 @@ export async function getYomiEnergy(userId: string) {
   const hoursPassed = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
   const energyDecay = Math.floor(hoursPassed * ENERGY_DECAY_PER_HOUR);
 
-  let newEnergy = Math.max(MIN_ENERGY, data.current_energy - energyDecay);
+  let newEnergy = Math.max(MIN_ENERGY, Math.round(data.current_energy - energyDecay));
 
   // Update the energy if it has changed
   if (newEnergy !== data.current_energy) {
@@ -48,7 +48,7 @@ export async function getYomiEnergy(userId: string) {
 
 export async function updateYomiEnergy(userId: string, newEnergy: number) {
   console.log(`updateYomiEnergy called with newEnergy: ${newEnergy}`);
-  const energy = Math.min(MAX_ENERGY, Math.max(MIN_ENERGY, newEnergy));
+  const energy = Math.min(MAX_ENERGY, Math.max(MIN_ENERGY, Math.round(newEnergy)));
   console.log(`Energy after min/max check: ${energy}`);
   const { data, error } = await supabase
     .from('users')
@@ -65,11 +65,11 @@ export async function updateYomiEnergy(userId: string, newEnergy: number) {
 
 export async function addReadingEnergy(userId: string, readingDurationMinutes: number) {
   console.log(`addReadingEnergy called with readingDurationMinutes: ${readingDurationMinutes}`);
-  const energyGain = Math.floor(readingDurationMinutes * 6) * ENERGY_GAIN_PER_10_SECONDS;
+  const energyGain = Math.round(Math.floor(readingDurationMinutes * 6) * ENERGY_GAIN_PER_10_SECONDS);
   console.log(`Calculated energyGain: ${energyGain}`);
   const currentEnergy = await getYomiEnergy(userId);
   console.log(`Current energy before update: ${currentEnergy}`);
-  const newEnergy = await updateYomiEnergy(userId, currentEnergy + energyGain);
+  const newEnergy = await updateYomiEnergy(userId, Math.round(currentEnergy + energyGain));
   console.log(`addReadingEnergy returning newEnergy: ${newEnergy}`);
   return newEnergy;
 }

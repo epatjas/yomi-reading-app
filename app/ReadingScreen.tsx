@@ -31,7 +31,7 @@ const ReadingScreen = () => {
   const { userId, storyId } = useLocalSearchParams<{ userId: string, storyId: string }>();
   console.log('ReadingScreen opened with userId:', userId);
   const router = useRouter();
-  const [hasPermission,setHasPermission] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [sessionEnergy, setSessionEnergy] = useState(0);
@@ -284,8 +284,11 @@ const ReadingScreen = () => {
       const readingPoints = Math.floor(readingTimeSeconds / 10) * 10;
       console.log(`Reading time: ${readingTimeSeconds} seconds`);
       console.log(`Reading points: ${readingPoints}`);
-      const newEnergy = await updateUserEnergy(userId, readingTimeSeconds / 60);
+      
+      // Update this line to ensure we're passing an integer
+      const newEnergy = await updateUserEnergy(userId, Math.round(readingTimeSeconds / 60));
       console.log(`Energy after reading session: ${newEnergy}`);
+      
       await updateUserReadingPoints(userId, readingPoints);
       console.log(`Sending readingTime: ${Math.round(readingTimeSeconds)} seconds`);
       

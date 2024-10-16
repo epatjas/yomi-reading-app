@@ -17,7 +17,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     const updates = data.map(user => {
       const lastUpdateTime = new Date(user.last_energy_update);
       const hoursPassed = (currentTime.getTime() - lastUpdateTime.getTime()) / (1000 * 60 * 60);
-      const newEnergy = Math.max(0, user.energy - (5 * hoursPassed));
+      const newEnergy = Math.max(0, Math.round(user.energy - (5 * hoursPassed)));
       return { id: user.id, energy: newEnergy, last_energy_update: currentTime.toISOString() };
     });
 

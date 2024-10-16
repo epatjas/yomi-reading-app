@@ -27,7 +27,7 @@ const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = ({ energy, onStatusP
   console.log(`YomiEnergyDisplay received energy: ${energy}`);
   
   // Ensure energy is a number and within bounds
-  const displayEnergy = Math.min(100, Math.max(0, Number(energy) || 0));
+  const displayEnergy = Math.min(100, Math.max(0, Math.round(Number(energy) || 0)));
   
   console.log(`YomiEnergyDisplay displaying energy: ${displayEnergy}`);
 

@@ -180,7 +180,7 @@ const ReadingResultsScreen: React.FC = () => {
   console.log(`Calculated readingTimeMinutes: ${readingTimeMinutes} minutes and ${readingTimeRemainingSeconds} seconds`);
 
   const [showTranscript, setShowTranscript] = useState(false);
-  const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy));
+  const [currentEnergy, setCurrentEnergy] = useState(Math.round(parseInt(energy)));
 
   useEffect(() => {
     const fetchCurrentEnergy = async () => {

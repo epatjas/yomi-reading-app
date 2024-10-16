@@ -130,15 +130,29 @@ export async function getUserTotalEnergy(userId: string): Promise<number> {
 
     if (error) throw error;
 
-    return data?.current_energy || 0;
+    return Math.round(data?.current_energy) || 0;
   } catch (error) {
     console.error('Error fetching user current energy:', error);
     return 0;
   }
 }
 
-export async function updateUserEnergy(userId: string, newEnergy: number): Promise<number> {
+export async function updateUserEnergy(userId: string, energyToAdd: number): Promise<number> {
   try {
+    // First, get the current energy
+    const { data: userData, error: fetchError } = await supabase
+      .from('users')
+      .select('current_energy')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!userData) throw new Error('User not found');
+
+    const currentEnergy = userData.current_energy || 0;
+    const newEnergy = Math.round(currentEnergy + energyToAdd);
+
+    // Then, update with the new total
     const { data, error } = await supabase
       .from('users')
       .update({ current_energy: newEnergy })
