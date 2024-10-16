@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { INITIAL_ENERGY } from './yomiEnergyService';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -20,7 +21,15 @@ export async function createUserProfile(username: string, avatarUrl: string): Pr
   try {
     const { data, error } = await supabase
       .from('users')
-      .upsert({ username, avatar_url: avatarUrl })
+      .upsert({ 
+        username, 
+        avatar_url: avatarUrl,
+        current_energy: INITIAL_ENERGY,
+        max_energy: 100, // or whatever your max energy value is
+        reading_points: 0,
+        evolution_stage: 'initial', // or whatever your initial stage is
+        last_energy_update: new Date().toISOString()
+      })
       .select()
       .single();
 

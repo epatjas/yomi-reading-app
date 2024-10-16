@@ -286,7 +286,7 @@ const ReadingScreen = () => {
       console.log(`Reading points: ${readingPoints}`);
       
       // Update this line to ensure we're passing an integer
-      const newEnergy = await updateUserEnergy(userId, Math.round(readingTimeSeconds / 60));
+      const newEnergy = await updateUserEnergy(userId, sessionEnergy);
       console.log(`Energy after reading session: ${newEnergy}`);
       
       await updateUserReadingPoints(userId, readingPoints);
