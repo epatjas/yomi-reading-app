@@ -6,12 +6,19 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export interface ReadingSession {
+  id: number;
   user_id: string;
   story_id: string;
-  start_time: Date;
-  end_time: Date;
-  duration: number; // This should be an integer (seconds)
-  energy_gained: number; // This should be an integer
+  start_time: string;
+  end_time: string;
+  duration: number;
+  energy_gained: number;
+  progress: number;
+  completed: boolean;
+  stories: {
+    id: string;
+    title: string;
+  };
 }
 
 export async function saveReadingSessionToDatabase(session: ReadingSession): Promise<void> {

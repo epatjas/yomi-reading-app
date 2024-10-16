@@ -1,6 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated } from 'react-native';
 import { colors, fonts, layout } from '../app/styles/globalStyles';
+import Svg, { Path } from 'react-native-svg';
+import { Dimensions } from 'react-native';
+
+const { width } = Dimensions.get('window');
+const SHAPE_SIZE = 48; // Adjust this value as needed to fit your design
 
 interface ReadingEnergyDisplayProps {
   energy: number;
@@ -54,10 +59,18 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
 
   return (
     <View style={styles.container}>
-      <Image 
-        source={getYomiImage(energy + sessionEnergy)}
-        style={styles.yomiIcon}
-      />
+      <View style={styles.yomiContainer}>
+        <Svg width={SHAPE_SIZE} height={SHAPE_SIZE} viewBox="0 0 184 180" style={styles.shapeBackground}>
+          <Path
+            d="M147.296 34.918C128.753 16.8494 116.849 -0.00828492 91.0203 3.05478e-05C63.6175 0.00879629 53.4067 18.6067 34.255 38.3606C15.6594 57.5409 1.40808e-05 59.9999 0 89.9999C-1.40808e-05 120 16.4608 124.261 32.7869 141.147C51.8094 160.822 63.7238 179.919 91.0203 180C116.65 180.075 130.169 165.246 147.296 146.065C164.501 126.798 183.788 116.871 183.998 90.9835C184.211 64.776 166.019 53.1613 147.296 34.918Z"
+            fill={colors.primary}
+          />
+        </Svg>
+        <Image 
+          source={getYomiImage(energy + sessionEnergy)}
+          style={styles.yomiIcon}
+        />
+      </View>
       <View style={styles.energyBarContainer}>
         <Animated.View 
           style={[
@@ -87,11 +100,20 @@ const styles = StyleSheet.create({
     height: 40,
     marginBottom: 10,
   },
-  yomiIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  yomiContainer: {
+    width: SHAPE_SIZE,
+    height: SHAPE_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 10,
+  },
+  shapeBackground: {
+    position: 'absolute',
+  },
+  yomiIcon: {
+    width: '90%',
+    height: '90%',
+    resizeMode: 'contain',
   },
   energyBarContainer: {
     flex: 1,

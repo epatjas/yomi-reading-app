@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, SafeAreaView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Image, SafeAreaView, Pressable, FlatList } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { BookCheck, Timer, ArrowLeft, LineChart, Edit2, ArrowLeftRight } from 'lucide-react-native';
+import { BookCheck, History, ArrowLeft, LineChart, Edit2, ArrowLeftRight, Play, Timer } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import ChooseAvatar from '../../components/choose-avatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserProfile, User, getTotalReadingTime, getTotalReadingPoints } from '../../services/userService'; // Make sure this import is correct
+import { getUserProfile, User, getTotalReadingTime, getTotalReadingPoints, getUserReadingHistory } from '../../services/userService'; // Make sure this import is correct
 import { updateUserProfile } from '../../services/userService';
+import { ReadingSession } from '../../services/readingSessionsHelpers';
 
 // Add this interface at the top of your file
 interface UserProfile {
@@ -42,11 +43,13 @@ export default function ProfileScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [totalReadingTime, setTotalReadingTime] = useState(0);
   const [totalReadingPoints, setTotalReadingPoints] = useState(0);
+  const [readingHistory, setReadingHistory] = useState<ReadingSession[]>([]);
 
   useEffect(() => {
     async function fetchUserData() {
       try {
         const storedUserId = await AsyncStorage.getItem('userId');
+        console.log('Stored userId:', storedUserId);
         if (storedUserId) {
           setUserId(storedUserId);
           const userProfile = await getUserProfile(storedUserId);
@@ -64,6 +67,11 @@ export default function ProfileScreen() {
           // Fetch total reading points
           const totalPoints = await getTotalReadingPoints(storedUserId);
           setTotalReadingPoints(totalPoints);
+
+          // Fetch reading history
+          const history = await getUserReadingHistory(storedUserId);
+          console.log('Fetched reading history:', history);
+          setReadingHistory(history);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -106,6 +114,20 @@ export default function ProfileScreen() {
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     return `${hours}h ${minutes}min`;
   };
+
+  const renderReadingHistoryItem = ({ item }: { item: ReadingSession }) => (
+    <View style={styles.historyItem}>
+      <View style={styles.historyIconContainer}>
+        <Play size={20} color={colors.background} />
+      </View>
+      <View style={styles.historyTextContainer}>
+        <Text style={styles.historyItemTitle}>{item.stories.title}</Text>
+        <Text style={styles.historyDate}>
+          {new Date(item.end_time).toLocaleDateString()}
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -161,6 +183,17 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        <View style={styles.historyTitleContainer}>
+          <History size={24} color={colors.text} style={styles.historyIcon} />
+          <Text style={styles.historyTitle}>Reading history</Text>
+        </View>
+        <FlatList
+          data={readingHistory}
+          renderItem={renderReadingHistoryItem}
+          keyExtractor={(item) => item.id.toString()}
+          style={styles.historyList}
+        />
 
         <ChooseAvatar
           isVisible={isAvatarModalVisible}
@@ -268,5 +301,53 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  historyTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: layout.spacing * 2,
+    marginBottom: layout.spacing,
+  },
+  historyIcon: {
+    marginRight: layout.spacing / 2,
+  },
+  historyTitle: {
+    fontFamily: fonts.medium,
+    fontSize: 18,
+    color: colors.text,
+  },
+  historyList: {
+    marginTop: layout.spacing,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background02,
+    borderRadius: 16,
+    padding: layout.padding,
+    marginBottom: layout.spacing,
+    borderWidth: 1,
+    borderColor: colors.stroke,
+  },
+  historyIconContainer: {
+    backgroundColor: colors.lavender,
+    borderRadius: 12,
+    padding: 8,
+    marginRight: layout.spacing,
+  },
+  historyTextContainer: {
+    flex: 1,
+
+  },
+  historyItemTitle: {
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    color: colors.text,
+  },
+  historyDate: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
 });

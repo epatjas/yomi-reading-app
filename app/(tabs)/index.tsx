@@ -2,28 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getUserReadingHistory, getUserTotalEnergy, getUserProfile } from '../../services/userService';
+import { getUserReadingHistory, getUserTotalEnergy, getUserProfile, User as UserProfile } from '../../services/userService';
 import { getYomiEnergy } from '../../services/yomiEnergyService';
 import YomiEnergyDisplay from '../../components/YomiEnergyDisplay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ReadingSession } from '../../services/readingSessionsHelpers';
+import Svg, { Path } from 'react-native-svg';
+import { Dimensions } from 'react-native';
 
-interface ReadingHistoryItem {
-  id: string;
-  progress: number;
-  completed: boolean;
-  created_at: string;
-  updated_at: string;
-  stories: {
-    id: string;
-    title: string;
-    cover_image: string;
-  };
-}
-
-interface UserProfile {
-  avatar_url?: string | string[];
-  // ... other properties
-}
+const { width } = Dimensions.get('window');
+const SHAPE_SIZE = Math.min(128, width * 0.3); // This ensures it's at most 128px, but can be smaller on narrow screens
 
 const getYomiImage = (energy: number) => {
   if (energy >= 80) return require('../../assets/images/yomi-max-energy.png');
@@ -49,7 +37,7 @@ const getAvatarUrl = (profile: UserProfile | null): string | null => {
 export default function HomeScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
-  const [lastReadStory, setLastReadStory] = useState<ReadingHistoryItem | null>(null);
+  const [lastReadStory, setLastReadStory] = useState<ReadingSession | null>(null);
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [currentEnergy, setCurrentEnergy] = useState(0);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -91,7 +79,7 @@ export default function HomeScreen() {
   const fetchReadingHistory = async (id: string) => {
     try {
       const history = await getUserReadingHistory(id);
-      if (history && history.length > 0) {
+      if (history.length > 0) {
         setLastReadStory(history[0]);
       }
     } catch (error) {
@@ -124,10 +112,6 @@ export default function HomeScreen() {
               <>
                 <Text style={styles.jumpBackText}>Jump back in</Text>
                 <Pressable style={styles.lastReadStory} onPress={() => router.push(`/reading/${lastReadStory.stories.id}`)}>
-                  <Image
-                    source={{ uri: lastReadStory.stories.cover_image }}
-                    style={styles.storyCover}
-                  />
                   <View style={styles.storyInfo}>
                     <Text style={styles.storyTitle}>{lastReadStory.stories.title}</Text>
                     <Text style={styles.storyProgress}>{lastReadStory.progress} words</Text>
@@ -136,10 +120,18 @@ export default function HomeScreen() {
               </>
             ) : (
               <>
-                <Image
-                  source={getYomiImage(totalEnergy)}
-                  style={styles.yomiImage}
-                />
+                <View style={styles.yomiContainer}>
+                  <Svg width={SHAPE_SIZE} height={SHAPE_SIZE} viewBox="0 0 184 180" style={styles.shapeBackground}>
+                    <Path
+                      d="M147.296 34.918C128.753 16.8494 116.849 -0.00828492 91.0203 3.05478e-05C63.6175 0.00879629 53.4067 18.6067 34.255 38.3606C15.6594 57.5409 1.40808e-05 59.9999 0 89.9999C-1.40808e-05 120 16.4608 124.261 32.7869 141.147C51.8094 160.822 63.7238 179.919 91.0203 180C116.65 180.075 130.169 165.246 147.296 146.065C164.501 126.798 183.788 116.871 183.998 90.9835C184.211 64.776 166.019 53.1613 147.296 34.918Z"
+                      fill={colors.green}
+                    />
+                  </Svg>
+                  <Image
+                    source={getYomiImage(totalEnergy)}
+                    style={styles.yomiImage}
+                  />
+                </View>
                 <View style={styles.messageContainer}>
                   <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line1}</Text>
                   <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line2}</Text>
@@ -190,16 +182,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: layout.padding,
     alignItems: 'center',
-    marginTop: 100, // Adjust this value to move the content higher
+    marginTop: 40, // Adjust this value to move the content higher
     marginBottom: layout.spacing,
     height: 320, // Increase the height to make it taller
   },
   yomiImage: {
-    width: '40%', // Reduced width from 80% to 60%
-    height: undefined, // Allow height to adjust automatically
-    aspectRatio: 4/3, // Keep this ratio, or adjust if needed
-    resizeMode: 'contain', // Ensure the entire image fits within the container
-    marginBottom: layout.spacing * 2,
+    width: '90%',
+    height: '90%',
+    resizeMode: 'contain',
   },
   message: {
     fontFamily: fonts.regular,
@@ -304,12 +294,6 @@ const styles = StyleSheet.create({
     padding: layout.padding,
     marginBottom: layout.spacing * 2,
   },
-  storyCover: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: layout.spacing,
-  },
   storyInfo: {
     flex: 1,
   },
@@ -348,5 +332,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: layout.spacing,
     paddingTop: layout.padding, // Add some top padding
+  },
+  yomiContainer: {
+    width: SHAPE_SIZE,
+    height: SHAPE_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: layout.spacing,
+  },
+  shapeBackground: {
+    position: 'absolute',
   },
 });

@@ -288,12 +288,19 @@ const ReadingScreen = () => {
 
             // Create a ReadingSession object
             const session: ReadingSession = {
+              id: 0, // This will be assigned by the database
               user_id: userId,
               story_id: currentStory.id,
-              start_time: startTime,
-              end_time: endTime,
-              duration: readingTimeSeconds,
-              energy_gained: readingPoints
+              start_time: startTime.toISOString(),
+              end_time: new Date().toISOString(),
+              duration: Math.round((Date.now() - startTime.getTime()) / 1000),
+              energy_gained: readingPoints,
+              progress: 0, // Replace with actual progress value
+              completed: true, // Replace with actual completion status
+              stories: {
+                id: currentStory.id,
+                title: currentStory.title
+              }
             };
 
             console.log('Saving reading session:', session); // Add this log

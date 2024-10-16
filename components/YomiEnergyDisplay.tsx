@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   yomiIcon: {
     width: 56,
     height: undefined,
-    aspectRatio: 4/3,
+    aspectRatio: 1/1,
     resizeMode: 'contain',
   },
   energyIconContainer: {
