@@ -5,30 +5,34 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export interface ReadingSession {
-  id: number;
+export type ReadingSession = {
+  id?: string; // Make this optional
   user_id: string;
   story_id: string;
   start_time: string;
   end_time: string;
   duration: number;
   energy_gained: number;
+  reading_points: number;
+  audio_url: string;
   progress: number;
   completed: boolean;
-  stories: {
-    id: string;
-    title: string;
-  };
-}
+};
 
-export async function saveReadingSessionToDatabase(session: ReadingSession): Promise<void> {
+export async function saveReadingSessionToDatabase(session: Omit<ReadingSession, 'id'>) {
+  console.log('Saving session to database:', JSON.stringify(session, null, 2));
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('reading_sessions')
-      .insert(session);
+      .insert(session)
+      .select();
 
-    if (error) throw error;
-    console.log('Reading session saved successfully');
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+    console.log('Session saved successfully:', data);
+    return data;
   } catch (error) {
     console.error('Error saving reading session:', error);
     throw error;

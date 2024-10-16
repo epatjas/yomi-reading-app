@@ -5,6 +5,7 @@ import { Play, ArrowLeft } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getStories, Story } from '../../services/storyService';
 import { getYomiEnergy } from '../../services/yomiEnergyService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getYomiImage = (energy: number) => {
   if (energy >= 80) return require('../../assets/images/yomi-max-energy.png');
@@ -19,30 +20,31 @@ export default function LibraryScreen() {
   const { userId } = useLocalSearchParams();
   const [stories, setStories] = useState<Story[]>([]);
   const [totalEnergy, setTotalEnergy] = useState(0);
+  const [userIdState, setUserIdState] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchStories() {
+    async function fetchData() {
       const fetchedStories = await getStories();
       setStories(fetchedStories);
+
+      const storedUserId = await AsyncStorage.getItem('userId');
+      setUserIdState(storedUserId);
     }
-    fetchStories();
+    fetchData();
   }, []);
 
   useEffect(() => {
     async function fetchUserEnergy() {
-      if (userId) {
-        const energy = await getYomiEnergy(userId as string);
+      if (userIdState) {
+        const energy = await getYomiEnergy(userIdState as string);
         setTotalEnergy(energy);
       }
     }
     fetchUserEnergy();
-  }, [userId]);
+  }, [userIdState]);
 
   const handleBookPress = (story: Story) => {
-    router.push({
-      pathname: '/ReadingScreen',
-      params: { title: story.title, userId: userId as string }
-    });
+    handleStorySelection(story.id);
   };
 
   const renderBookItem = ({ item }: { item: Story }) => (
@@ -70,15 +72,15 @@ export default function LibraryScreen() {
   );
 
   const handleStorySelection = (storyId: string) => {
-    if (!userId) {
+    if (!userIdState) {
       Alert.alert('Error', 'User ID is missing. Please log in again.');
       router.replace('/login');
       return;
     }
     
     router.push({
-      pathname: '/reading',
-      params: { storyId, userId }
+      pathname: '/ReadingScreen',
+      params: { storyId, userId: userIdState }
     });
   };
 

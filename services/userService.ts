@@ -137,14 +137,17 @@ export async function getUserTotalEnergy(userId: string): Promise<number> {
   }
 }
 
-export async function updateUserEnergy(userId: string, newEnergy: number): Promise<void> {
+export async function updateUserEnergy(userId: string, newEnergy: number): Promise<number> {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .update({ current_energy: newEnergy })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select('current_energy')
+      .single();
 
     if (error) throw error;
+    return data?.current_energy || 0;
   } catch (error) {
     console.error('Error updating user energy:', error);
     throw error;
@@ -203,14 +206,14 @@ export async function getTotalReadingTime(userId: string): Promise<number> {
 export async function getTotalReadingPoints(userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
-      .from('reading_sessions')
-      .select('energy_gained')
-      .eq('user_id', userId);
+      .from('users')
+      .select('reading_points')
+      .eq('id', userId)
+      .single();
 
     if (error) throw error;
 
-    const totalPoints = data.reduce((sum, session) => sum + (session.energy_gained || 0), 0);
-    return totalPoints;
+    return data?.reading_points || 0;
   } catch (error) {
     console.error('Error fetching total reading points:', error);
     throw error;

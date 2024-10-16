@@ -111,9 +111,9 @@ export default function HomeScreen() {
             {lastReadStory ? (
               <>
                 <Text style={styles.jumpBackText}>Jump back in</Text>
-                <Pressable style={styles.lastReadStory} onPress={() => router.push(`/reading/${lastReadStory.stories.id}`)}>
+                <Pressable style={styles.lastReadStory} onPress={() => router.push(`/reading/${lastReadStory.story_id}`)}>
                   <View style={styles.storyInfo}>
-                    <Text style={styles.storyTitle}>{lastReadStory.stories.title}</Text>
+                    <Text style={styles.storyTitle}>{lastReadStory.story_id}</Text>
                     <Text style={styles.storyProgress}>{lastReadStory.progress} words</Text>
                   </View>
                 </Pressable>

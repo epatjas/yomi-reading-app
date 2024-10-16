@@ -121,7 +121,7 @@ export default function ProfileScreen() {
         <Play size={20} color={colors.background} />
       </View>
       <View style={styles.historyTextContainer}>
-        <Text style={styles.historyItemTitle}>{item.stories.title}</Text>
+        <Text style={styles.historyItemTitle}>{item.story_id}</Text>
         <Text style={styles.historyDate}>
           {new Date(item.end_time).toLocaleDateString()}
         </Text>
@@ -191,7 +191,7 @@ export default function ProfileScreen() {
         <FlatList
           data={readingHistory}
           renderItem={renderReadingHistoryItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id?.toString() ?? item.story_id}
           style={styles.historyList}
         />
 
