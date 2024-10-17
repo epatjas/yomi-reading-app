@@ -338,24 +338,23 @@ const ReadingScreen = () => {
     }
   };
 
-  const uploadAudioToSupabase = async (uri: string): Promise<string | null> => {
+  const uploadAudioToSupabase = async (uri: string): Promise<string> => {
     console.log('Attempting to upload audio to Supabase:', uri);
     try {
       const fileContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       const fileExtension = uri.split('.').pop();
       const fileName = `audio_${Date.now()}.${fileExtension}`;
-      const filePath = `${fileName}`;
+      const filePath = `${userId}/${fileName}`;
 
       const { data, error } = await supabase.storage
         .from('audio-recordings')
         .upload(filePath, decode(fileContent), {
           contentType: `audio/${fileExtension}`,
-          upsert: true
         });
 
       if (error) {
         console.error('Error uploading file to Supabase:', error);
-        return null;
+        throw error;
       }
 
       const { data: publicUrlData } = supabase.storage
@@ -366,11 +365,11 @@ const ReadingScreen = () => {
       return publicUrlData.publicUrl;
     } catch (error) {
       console.error('Error in uploadAudioToSupabase:', error);
-      return null;
+      throw error;
     }
   };
 
-  // Add this function to decode base64
+  // Helper function to convert Base64 to Uint8Array
   function decode(base64: string): Uint8Array {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
@@ -385,20 +384,67 @@ const ReadingScreen = () => {
     console.log('Attempting to stop reading...');
     setIsReading(false);
     stopSpeechRecognition();
-    await stopRecording();
 
-    // Calculate reading time in seconds
+    let audioUrl = '';
+    if (recording) {
+      try {
+        console.log('Stopping recording...');
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        console.log('Recording stopped. URI:', uri);
+        
+        if (uri) {
+          console.log('Attempting to upload audio:', uri);
+          audioUrl = await uploadAudioToSupabase(uri);
+          console.log('Audio uploaded successfully, URL:', audioUrl);
+        } else {
+          console.log('No audio URI available after stopping recording');
+        }
+      } catch (error) {
+        console.error('Error stopping recording or uploading audio:', error);
+      }
+    } else {
+      console.log('No active recording to stop');
+    }
+
+    // Calculate reading time
     const endTime = new Date();
-    const readingTimeSeconds = Math.round((endTime.getTime() - (startTime?.getTime() || 0)) / 1000);
+    const startTimeDate = startTime || new Date();
+    const durationInSeconds = Math.round((endTime.getTime() - startTimeDate.getTime()) / 1000);
+
+    // Save the reading session to the database
+    try {
+      console.log('Preparing to save reading session...');
+      const readingSession: Omit<ReadingSession, 'id'> = {
+        user_id: userId,
+        story_id: currentStory?.id || '',
+        start_time: startTimeDate.toISOString(),
+        end_time: endTime.toISOString(),
+        duration: durationInSeconds,
+        energy_gained: sessionEnergy,
+        reading_points: sessionEnergy,
+        audio_url: audioUrl,
+        progress: 100,
+        completed: true,
+        story_title: currentStory?.title
+      };
+
+      console.log('Reading session object:', JSON.stringify(readingSession, null, 2));
+      const savedSession = await saveReadingSessionToDatabase(readingSession);
+      console.log('Reading session saved successfully:', savedSession);
+    } catch (error) {
+      console.error('Error saving reading session:', error);
+      Alert.alert('Error', 'Failed to save reading session. Your progress may not be recorded.');
+    }
 
     // Navigate to ReadingResultsScreen
     router.push({
       pathname: '/ReadingResultsScreen',
       params: {
-        readingTime: readingTimeSeconds.toString(),
+        readingTime: durationInSeconds.toString(),
         readingPoints: sessionEnergy.toString(),
         energy: totalEnergy.toString(),
-        audioUri: audioUri || '',
+        audioUri: audioUrl,
         transcript: transcript,
         userId: userId,
       },

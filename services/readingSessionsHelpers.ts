@@ -17,15 +17,16 @@ export type ReadingSession = {
   audio_url: string;
   progress: number;
   completed: boolean;
-  story_title?: string; // New optional field
+  story_title?: string; // Add this line, making it optional
 };
 
 export async function saveReadingSessionToDatabase(session: Omit<ReadingSession, 'id'>) {
   console.log('Saving session to database:', JSON.stringify(session, null, 2));
   try {
+    const { story_title, ...sessionWithoutTitle } = session; // Exclude story_title
     const { data, error } = await supabase
       .from('reading_sessions')
-      .insert(session)
+      .insert(sessionWithoutTitle)
       .select();
 
     if (error) {
