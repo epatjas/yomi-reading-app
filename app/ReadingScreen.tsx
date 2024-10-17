@@ -18,9 +18,15 @@ import {
   updateUserEnergy, 
   updateUserReadingPoints 
 } from '../services/userService';
+import { createClient } from '@supabase/supabase-js';
 
 // Global variable to store the current recording
 let globalRecording: Audio.Recording | null = null;
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Main component for the reading screen
 const ReadingScreen = () => {
@@ -39,7 +45,8 @@ const ReadingScreen = () => {
   const [recentGain, setRecentGain] = useState(0);
   const [isReading, setIsReading] = useState(false);
   const [energyProgress, setEnergyProgress] = useState(0);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [transcript, setTranscript] = useState('');
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
@@ -110,26 +117,23 @@ const ReadingScreen = () => {
   // Effect to clean up recording when component unmounts
   useEffect(() => {
     return () => {
-      if (recordingRef.current) {
-        console.log('Component unmounting, stopping any active recording');
-        recordingRef.current.stopAndUnloadAsync().catch(console.error);
-        recordingRef.current = null;
-      }
-      if (globalRecording) {
-        console.log('Component unmounting, releasing global recording');
-        globalRecording = null;
+      console.log('Component unmounting, cleaning up recording');
+      if (recording) {
+        recording.stopAndUnloadAsync().catch(error => {
+          console.error('Error stopping recording during cleanup:', error);
+        });
       }
     };
-  }, []);
+  }, [recording]);
 
   // Effect to handle recording when screen loses focus
   useFocusEffect(
     React.useCallback(() => {
       return () => {
-        if (recordingRef.current) {
+        if (recording) {
           console.log('Screen losing focus, stopping any active recording');
-          recordingRef.current.stopAndUnloadAsync().catch(console.error);
-          recordingRef.current = null;
+          recording.stopAndUnloadAsync().catch(console.error);
+          setRecording(null);
         }
       };
     }, [])
@@ -180,47 +184,48 @@ const ReadingScreen = () => {
   };
 
   // Function to start recording
-  const startRecording = async () => {
-    console.log('Entering startRecording function');
+  const startRecording = async (): Promise<Audio.Recording | null> => {
     try {
-      await forceReleaseExistingRecordings();
-      await reinitializeAudioAPI();
-      await createRecordingObject();
-      
-      if (globalRecording) {
-        console.log('Starting recording');
-        await globalRecording.startAsync();
-        recordingRef.current = globalRecording;
-        console.log('Recording started successfully');
-        return globalRecording;
-      } else {
-        throw new Error('Failed to create recording object');
-      }
-    } catch (error) {
-      console.error('Error in startRecording:', error);
-      throw error;
+      console.log('Requesting permissions..');
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      console.log('Starting recording..');
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      console.log('Recording started');
+      return recording;
+    } catch (err) {
+      console.error('Failed to start recording', err);
+      return null;
     }
   };
 
   // Function to stop recording
-  const stopRecording = async () => {
+  const stopRecording = async (): Promise<string | null> => {
     console.log('Entering stopRecording function');
-    if (!recordingRef.current) {
-      console.log('No recording to stop');
-      return null;
-    }
-
-    try {
-      console.log('Stopping recording..');
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      console.log('Recording stopped and stored at', uri);
-      recordingRef.current = null;
-      globalRecording = null;
-      return uri;
-    } catch (error) {
-      console.error('Failed to stop recording', error);
-      Alert.alert('Error', 'Failed to stop recording. Please try again.');
+    if (recording) {
+      try {
+        const uri = recording.getURI();
+        if (!uri) {
+          console.error('No URI available from active recording');
+          return null;
+        }
+        await recording.stopAndUnloadAsync();
+        console.log('Recording stopped, URI:', uri);
+        setRecording(null);
+        return uri;
+      } catch (error) {
+        console.error('Error stopping recording:', error);
+        setRecording(null);
+        return null;
+      }
+    } else {
+      console.log('No active recording to stop');
       return null;
     }
   };
@@ -252,13 +257,64 @@ const ReadingScreen = () => {
     return () => clearInterval(interval);
   }, [updateEnergyWhileReading]);
 
-  // Function to handle starting the reading session
+  const recordAndGetUri = async (duration: number = 5000): Promise<string | null> => {
+    let recording: Audio.Recording | null = null;
+    let uri: string | null = null;
+    
+    try {
+      recording = await startRecording();
+      if (!recording) {
+        console.log('Failed to start recording');
+        return null;
+      }
+
+      // Wait for the specified duration
+      await new Promise(resolve => setTimeout(resolve, duration));
+
+      // Stop and unload the recording
+      await recording.stopAndUnloadAsync();
+      uri = recording.getURI();
+      console.log('Recording stopped and stored at', uri);
+
+      return uri;
+    } catch (error) {
+      console.error('Error in recordAndGetUri:', error);
+      return null;
+    } finally {
+      // Only attempt to stop and unload if we haven't already done so
+      if (recording && !uri) {
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch (cleanupError) {
+          console.error('Error cleaning up recording:', cleanupError);
+        }
+      }
+    }
+  };
+
   const handleStartReading = async () => {
     try {
       console.log('Starting reading session...');
       setIsReading(true);
       setStartTime(new Date());
-      await startRecording();
+      setTranscript(''); // Reset transcript at the start of each session
+      const recording = await startRecording();
+      if (recording) {
+        setRecording(recording);
+        const getAudioBase64 = async () => {
+          const uri = recording.getURI();
+          if (uri) {
+            return await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          }
+          return '';
+        };
+        startSpeechRecognition(getAudioBase64, (transcriptText: string) => {
+          console.log('Received transcript:', transcriptText);
+          setTranscript(prevTranscript => prevTranscript + ' ' + transcriptText);
+        });
+      } else {
+        throw new Error('Failed to start recording');
+      }
     } catch (error) {
       console.error('Error starting reading:', error);
       setIsReading(false);
@@ -266,33 +322,71 @@ const ReadingScreen = () => {
     }
   };
 
+  const uploadAudioToSupabase = async (uri: string): Promise<string | null> => {
+    console.log('Attempting to upload audio to Supabase:', uri);
+    try {
+      const fileContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      const fileExtension = uri.split('.').pop();
+      const fileName = `audio_${Date.now()}.${fileExtension}`;
+      const filePath = `${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('audio-recordings')
+        .upload(filePath, decode(fileContent), {
+          contentType: `audio/${fileExtension}`,
+          upsert: true
+        });
+
+      if (error) {
+        console.error('Error uploading file to Supabase:', error);
+        return null;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('audio-recordings')
+        .getPublicUrl(filePath);
+
+      console.log('Audio successfully uploaded to Supabase:', publicUrlData.publicUrl);
+      return publicUrlData.publicUrl;
+    } catch (error) {
+      console.error('Error in uploadAudioToSupabase:', error);
+      return null;
+    }
+  };
+
+  // Add this function to decode base64
+  function decode(base64: string): Uint8Array {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+
   // Function to handle stopping the reading session
   const handleStopReading = async () => {
     console.log('Attempting to stop reading...');
     setIsReading(false);
     try {
-      if (!recordingRef.current) {
-        console.log('No active recording found');
-        return;
-      }
-      console.log('Stopping recording...');
       const uri = await stopRecording();
       console.log('Recording stopped, URI:', uri);
-      
+
+      let remoteAudioUrl = null;
+      if (uri) {
+        remoteAudioUrl = await uploadAudioToSupabase(uri);
+        console.log('Audio uploaded to Supabase, URL:', remoteAudioUrl);
+      } else {
+        console.log('No audio URI available for upload');
+      }
+
       const endTime = new Date();
       const readingTimeSeconds = Math.round((endTime.getTime() - startTime!.getTime()) / 1000);
       const readingPoints = Math.floor(readingTimeSeconds / 10) * 10;
-      console.log(`Reading time: ${readingTimeSeconds} seconds`);
-      console.log(`Reading points: ${readingPoints}`);
       
-      // Update this line to ensure we're passing an integer
       const newEnergy = await updateUserEnergy(userId, sessionEnergy);
-      console.log(`Energy after reading session: ${newEnergy}`);
-      
       await updateUserReadingPoints(userId, readingPoints);
-      console.log(`Sending readingTime: ${Math.round(readingTimeSeconds)} seconds`);
       
-      // Create a ReadingSession object
       const session: Omit<ReadingSession, 'id'> = {
         user_id: userId,
         story_id: currentStory!.id,
@@ -301,32 +395,26 @@ const ReadingScreen = () => {
         duration: readingTimeSeconds,
         energy_gained: sessionEnergy,
         reading_points: readingPoints,
-        audio_url: uri || '',
+        audio_url: remoteAudioUrl || '',
         progress: 100,
         completed: true
       };
       
-      console.log('Saving reading session:', session);
-      // Save the reading session
       await saveReadingSessionToDatabase(session);
-      console.log('Reading session saved successfully');
+
       router.push({
         pathname: '/reading-results',
         params: {
-          readingTime: Math.round(readingTimeSeconds).toString(),
+          readingTime: readingTimeSeconds.toString(),
           readingPoints: readingPoints.toString(),
           energy: newEnergy.toString(),
-          audioUri: uri || '',
-          transcript: '', // Note: transcript is not being set here
+          audioUri: remoteAudioUrl || '',
+          transcript: transcript || 'No transcript available', // Ensure we always pass a string
           userId: userId,
         },
       });
     } catch (error) {
       console.error('Error in handleStopReading:', error);
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
       Alert.alert('Error', 'Failed to complete the reading session. Please try again.');
     }
   };

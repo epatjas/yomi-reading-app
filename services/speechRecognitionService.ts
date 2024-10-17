@@ -16,56 +16,50 @@ function isValidBase64(str: string) {
   }
 }
 
-export async function startSpeechRecognition(audioBase64: string, onTranscript: (text: string) => void) {
+export async function startSpeechRecognition(
+  getAudioBase64: () => Promise<string | null>,
+  onTranscript: (text: string) => void
+) {
   try {
     console.log("Starting speech recognition...");
 
-    // Create a temporary file with the base64 content
-    const tempFilePath = `${FileSystem.cacheDirectory}temp_audio.m4a`;
-    await FileSystem.writeAsStringAsync(tempFilePath, audioBase64, { encoding: FileSystem.EncodingType.Base64 });
+    const processAudio = async () => {
+      const audioBase64 = await getAudioBase64();
+      if (!audioBase64) {
+        console.log("No audio data available");
+        return;
+      }
 
-    // Check if the file was created successfully
-    const fileInfo = await FileSystem.getInfoAsync(tempFilePath);
-    if (!fileInfo.exists) {
-      throw new Error('Temporary audio file does not exist');
-    }
+      // Create a temporary file with the base64 content
+      const tempFilePath = `${FileSystem.cacheDirectory}temp_audio.m4a`;
+      await FileSystem.writeAsStringAsync(tempFilePath, audioBase64, { encoding: FileSystem.EncodingType.Base64 });
 
-    console.log("Temp file created successfully:", tempFilePath);
+      // Read the file as a Uint8Array
+      const fileContent = await FileSystem.readAsStringAsync(tempFilePath, { encoding: FileSystem.EncodingType.Base64 });
+      const uint8Array = new Uint8Array(Buffer.from(fileContent, 'base64'));
 
-    // Create a FormData object
-    const formData = new FormData();
-    formData.append('file', {
-      uri: tempFilePath,
-      name: 'audio.m4a',
-      type: 'audio/m4a'
-    } as any);
-    formData.append('model', 'whisper-1');
+      // Create a File object
+      const file = new File([uint8Array], 'audio.m4a', { type: 'audio/m4a' });
 
-    console.log("Sending request to OpenAI API...");
+      // Send the audio to OpenAI API
+      const response = await openai.audio.transcriptions.create({
+        file: file,
+        model: "whisper-1",
+      });
 
-    // Use fetch to make the request
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.EXPO_PUBLIC_OPENAI_API_KEY}`,
-        'Content-Type': 'multipart/form-data'
-      },
-      body: formData
-    });
+      console.log("Transcription response:", response);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API response error:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+      if (response.text) {
+        onTranscript(response.text);
+      }
 
-    const result = await response.json();
-    console.log("Received transcript:", result.text);
-    onTranscript(result.text);
+      // Schedule the next processing after a delay
+      setTimeout(processAudio, 5000); // Process every 5 seconds
+    };
 
-    // Clean up the temporary file
-    await FileSystem.deleteAsync(tempFilePath);
-    console.log("Temporary file deleted");
+    // Start the initial processing
+    processAudio();
+
   } catch (error) {
     console.error('Error in speech recognition:', error);
     throw error;

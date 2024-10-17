@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, SafeAreaView, Pressable, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, SafeAreaView, Pressable, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { BookCheck, History, ArrowLeft, LineChart, Edit2, ArrowLeftRight, Play, Timer } from 'lucide-react-native';
+import { BookCheck, History, ArrowLeft, LineChart, Edit2, ArrowLeftRight, Play, Pause, Timer } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import ChooseAvatar from '../../components/choose-avatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserProfile, User, getTotalReadingTime, getTotalReadingPoints, getUserReadingHistory } from '../../services/userService'; // Make sure this import is correct
 import { updateUserProfile } from '../../services/userService';
 import { ReadingSession } from '../../services/readingSessionsHelpers';
+import { Audio, AVPlaybackStatus } from 'expo-av';
 
 // Add this interface at the top of your file
 interface UserProfile {
@@ -44,6 +45,10 @@ export default function ProfileScreen() {
   const [totalReadingTime, setTotalReadingTime] = useState(0);
   const [totalReadingPoints, setTotalReadingPoints] = useState(0);
   const [readingHistory, setReadingHistory] = useState<ReadingSession[]>([]);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [playingAudioUrl, setPlayingAudioUrl] = useState<string | null>(null);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -78,6 +83,29 @@ export default function ProfileScreen() {
       }
     }
     fetchUserData();
+
+    return () => {
+      if (sound) {
+        console.log('Unloading sound');
+        sound.unloadAsync();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    async function setupAudio() {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
+      } catch (error) {
+        console.error('Error setting up audio mode:', error);
+      }
+    }
+    setupAudio();
   }, []);
 
   const handleChangeAvatar = () => {
@@ -115,15 +143,60 @@ export default function ProfileScreen() {
     return `${hours}h ${minutes}min`;
   };
 
+  const playAudio = async (audioUrl: string) => {
+    console.log('Attempting to play audio:', audioUrl);
+    try {
+      if (playingAudioUrl === audioUrl && sound) {
+        console.log('Pausing current audio');
+        await sound.pauseAsync();
+        setPlayingAudioUrl(null);
+      } else {
+        if (sound) {
+          console.log('Stopping and unloading previous audio');
+          await sound.stopAsync();
+          await sound.unloadAsync();
+        }
+
+        console.log('Loading new audio');
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: audioUrl },
+          { shouldPlay: true, volume: 1.0 },
+          (status) => console.log('Playback status:', status)
+        );
+
+        console.log('New audio loaded, playing');
+        setSound(newSound);
+        setPlayingAudioUrl(audioUrl);
+
+        await newSound.playAsync();
+      }
+    } catch (error) {
+      console.error('Error in playAudio function:', error);
+      if (error instanceof Error) {
+        setAudioError(error.message);
+      } else {
+        setAudioError('An unknown error occurred');
+      }
+      setPlayingAudioUrl(null);
+    }
+  };
+
   const renderReadingHistoryItem = ({ item }: { item: ReadingSession }) => (
     <View style={styles.historyItem}>
-      <View style={styles.historyIconContainer}>
-        <Play size={20} color={colors.background} />
-      </View>
+      <Pressable 
+        style={styles.historyIconContainer}
+        onPress={() => playAudio(item.audio_url)}
+      >
+        {playingAudioUrl === item.audio_url ? (
+          <Pause size={20} color={colors.background} />
+        ) : (
+          <Play size={20} color={colors.background} />
+        )}
+      </Pressable>
       <View style={styles.historyTextContainer}>
-        <Text style={styles.historyItemTitle}>{item.story_id}</Text>
+        <Text style={styles.historyItemTitle}>{item.story_title || item.story_id}</Text>
         <Text style={styles.historyDate}>
-          {new Date(item.end_time).toLocaleDateString()}
+          {new Date(item.start_time).toLocaleDateString()}
         </Text>
       </View>
     </View>
@@ -131,76 +204,79 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Breadcrumb header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color={colors.text} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Pressable onPress={() => router.push('/select-profile')} style={styles.switchProfileButton}>
-            <ArrowLeftRight size={24} color={colors.text} />
-          </Pressable>
-        </View>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.container}>
+          {/* Breadcrumb header */}
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={24} color={colors.text} />
+            </Pressable>
+            <Text style={styles.headerTitle}>Profile</Text>
+            <Pressable onPress={() => router.push('/select-profile')} style={styles.switchProfileButton}>
+              <ArrowLeftRight size={24} color={colors.text} />
+            </Pressable>
+          </View>
 
-        <View style={styles.greetingContainer}>
-          <Text style={styles.greeting}>
-            Hei {userName}!
-          </Text>
-        </View>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting}>
+              Hei {userName}!
+            </Text>
+          </View>
 
-        <View style={styles.profileImageContainer}>
-          <Image
-            source={userAvatar ? { uri: userAvatar } : avatars[selectedAvatar]}
-            style={styles.profileImage}
+          <View style={styles.profileImageContainer}>
+            <Image
+              source={userAvatar ? { uri: userAvatar } : avatars[selectedAvatar]}
+              style={styles.profileImage}
+            />
+            <Pressable style={styles.editAvatarButton} onPress={() => setIsAvatarModalVisible(true)}>
+              <Edit2 size={20} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <View style={styles.statsTitleContainer}>
+            <LineChart size={24} color={colors.text} style={styles.statsIcon} />
+            <Text style={styles.statsTitle}>Statistics</Text>
+          </View>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.mint }]}>
+                <BookCheck size={24} color={colors.background} />
+              </View>
+              <View>
+                <Text style={styles.statValue}>{totalReadingPoints}</Text>
+                <Text style={styles.statLabel}>Reading points</Text>
+              </View>
+            </View>
+            <View style={styles.statItem}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.lavender }]}>
+                <Timer size={24} color={colors.background} />
+              </View>
+              <View>
+                <Text style={styles.statValue}>{formatReadingTime(totalReadingTime)}</Text>
+                <Text style={styles.statLabel}>Time spent reading</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.historyTitleContainer}>
+            <History size={24} color={colors.text} style={styles.historyIcon} />
+            <Text style={styles.historyTitle}>Reading history</Text>
+          </View>
+          <FlatList
+            data={readingHistory}
+            renderItem={renderReadingHistoryItem}
+            keyExtractor={(item) => item.id?.toString() ?? item.story_id}
+            style={styles.historyList}
+            scrollEnabled={false} // Disable scrolling for FlatList
           />
-          <Pressable style={styles.editAvatarButton} onPress={() => setIsAvatarModalVisible(true)}>
-            <Edit2 size={20} color={colors.text} />
-          </Pressable>
-        </View>
 
-        <View style={styles.statsTitleContainer}>
-          <LineChart size={24} color={colors.text} style={styles.statsIcon} />
-          <Text style={styles.statsTitle}>Statistics</Text>
+          <ChooseAvatar
+            isVisible={isAvatarModalVisible}
+            onClose={handleCloseAvatarModal}
+            onSelectAvatar={handleSelectAvatar}
+          />
         </View>
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.mint }]}>
-              <BookCheck size={24} color={colors.background} />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{totalReadingPoints}</Text>
-              <Text style={styles.statLabel}>Reading points</Text>
-            </View>
-          </View>
-          <View style={styles.statItem}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.lavender }]}>
-              <Timer size={24} color={colors.background} />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{formatReadingTime(totalReadingTime)}</Text>
-              <Text style={styles.statLabel}>Time spent reading</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.historyTitleContainer}>
-          <History size={24} color={colors.text} style={styles.historyIcon} />
-          <Text style={styles.historyTitle}>Reading history</Text>
-        </View>
-        <FlatList
-          data={readingHistory}
-          renderItem={renderReadingHistoryItem}
-          keyExtractor={(item) => item.id?.toString() ?? item.story_id}
-          style={styles.historyList}
-        />
-
-        <ChooseAvatar
-          isVisible={isAvatarModalVisible}
-          onClose={handleCloseAvatarModal}
-          onSelectAvatar={handleSelectAvatar}
-        />
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -337,17 +413,19 @@ const styles = StyleSheet.create({
   },
   historyTextContainer: {
     flex: 1,
-
   },
   historyItemTitle: {
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     fontSize: 16,
     color: colors.text,
+    marginBottom: 4,
   },
   historyDate: {
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.textSecondary,
-    marginTop: 4,
+  },
+  scrollView: {
+    flex: 1,
   },
 });

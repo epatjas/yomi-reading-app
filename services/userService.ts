@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { INITIAL_ENERGY } from './yomiEnergyService';
+import { ReadingSession } from './readingSessionsHelpers';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -102,27 +103,28 @@ export async function getUserProfiles(): Promise<User[]> {
   }
 }
 
-export async function getUserReadingHistory(userId: string): Promise<any[]> {
+export async function getUserReadingHistory(userId: string): Promise<ReadingSession[]> {
   try {
     const { data, error } = await supabase
-      .from('reading_history')
+      .from('reading_sessions')
       .select(`
-        id,
-        progress,
-        completed,
-        created_at,
-        updated_at,
+        *,
         stories:story_id (
-          id,
           title
         )
       `)
       .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
+      .order('start_time', { ascending: false });
 
     if (error) throw error;
 
-    return data || [];
+    // Transform the data to include the story title
+    const transformedData = data?.map(session => ({
+      ...session,
+      story_title: session.stories?.title || 'Unknown Story'
+    })) || [];
+
+    return transformedData;
   } catch (error) {
     console.error('Error fetching user reading history:', error);
     throw error;

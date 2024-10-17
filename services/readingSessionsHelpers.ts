@@ -17,6 +17,7 @@ export type ReadingSession = {
   audio_url: string;
   progress: number;
   completed: boolean;
+  story_title?: string; // New optional field
 };
 
 export async function saveReadingSessionToDatabase(session: Omit<ReadingSession, 'id'>) {
@@ -56,3 +57,8 @@ export function calculateComprehension(
   const comprehensionScore = (correctWords / totalWords) * 100;
   return Math.round(comprehensionScore); // Round to nearest whole number
 }
+
+const renderReadingHistoryItem = ({ item }: { item: ReadingSession }) => {
+  console.log('Audio URL for item:', item.audio_url);
+  // ... rest of the function
+};

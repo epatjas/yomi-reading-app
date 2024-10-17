@@ -89,54 +89,63 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
 
-  const togglePlayback = async () => {
-    if (sound) {
-      if (isPlaying) {
-        await sound.pauseAsync();
-      } else {
-        await sound.playAsync();
-      }
-      setIsPlaying(!isPlaying);
-    } else {
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { shouldPlay: true },
-        onPlaybackStatusUpdate
-      );
-      setSound(newSound);
-      setIsPlaying(true);
-    }
-  };
-
-  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (status.isLoaded && !status.isPlaying && status.didJustFinish) {
-      setIsPlaying(false);
-    }
-  };
-
   useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
-
-  useEffect(() => {
-    // Load the sound and get its duration
+    let isMounted = true;
     const loadSound = async () => {
-      const { sound, status } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { shouldPlay: false },
-        onPlaybackStatusUpdate
-      );
-      setSound(sound);
-      if (status.isLoaded) {
-        setDuration(status.durationMillis || 0);
+      try {
+        console.log('Loading sound from URI:', audioUri);
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: audioUri },
+          { shouldPlay: false },
+          onPlaybackStatusUpdate
+        );
+        if (isMounted) {
+          setSound(sound);
+          const status = await sound.getStatusAsync();
+          console.log('Initial sound status:', status);
+          if (status.isLoaded) {
+            console.log('Setting initial duration:', status.durationMillis);
+            setDuration(status.durationMillis || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading sound:', error);
       }
     };
     loadSound();
+    return () => {
+      isMounted = false;
+      if (sound) {
+        console.log('Unloading sound');
+        sound.unloadAsync();
+      }
+    };
   }, [audioUri]);
+
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (status.isLoaded) {
+      setPosition(status.positionMillis);
+      if (status.durationMillis && status.durationMillis !== duration) {
+        console.log('Updating duration:', status.durationMillis);
+        setDuration(status.durationMillis);
+      }
+      setIsPlaying(status.isPlaying);
+    }
+  };
+
+  const togglePlayback = async () => {
+    if (sound) {
+      if (isPlaying) {
+        console.log('Pausing playback');
+        await sound.pauseAsync();
+      } else {
+        console.log('Starting playback');
+        await sound.playAsync();
+      }
+    }
+  };
+
+  console.log('Rendering AudioPlayer. Duration:', duration, 'Position:', position);
 
   return (
     <View style={styles.audioPlayerContainer}>
@@ -152,6 +161,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
         <View style={styles.audioWaveContainer}>
           <AudioWaveform isPlaying={isPlaying} />
         </View>
+        <Text style={styles.timeText}>{formatTime(duration)}</Text>
       </View>
     </View>
   );
@@ -159,17 +169,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
 
 const ReadingResultsScreen: React.FC = () => {
   const router = useRouter();
-  const { readingTime, readingPoints, energy, audioUri, userId, transcript } = useLocalSearchParams<{
+  const { readingTime, readingPoints, energy, audioUri, transcript, userId } = useLocalSearchParams<{
     readingTime: string;
     readingPoints: string;
     energy: string;
     audioUri: string;
-    userId: string;
     transcript: string;
+    userId: string;
   }>();
 
-  console.log(`ReadingResultsScreen received energy: ${energy}`);
-  console.log(`Received reading points: ${readingPoints}`);
+  console.log('Audio URI:', audioUri);
+  console.log('Transcript:', transcript);
 
   // Convert reading time from seconds to minutes and seconds
   const readingTimeSeconds = readingTime ? parseInt(readingTime) : 0;
