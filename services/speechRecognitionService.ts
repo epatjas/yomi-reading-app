@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import * as FileSystem from 'expo-file-system';
+import * as Speech from 'expo-speech';
 
 const openai = new OpenAI({
   apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
@@ -7,6 +8,11 @@ const openai = new OpenAI({
 });
 
 console.log("OpenAI API Key:", process.env.EXPO_PUBLIC_OPENAI_API_KEY);
+
+let isProcessing = false;
+let isListening = false;
+let silenceTimer: NodeJS.Timeout | null = null;
+const SILENCE_DURATION = 1500; // 1.5 seconds of silence before stopping
 
 function isValidBase64(str: string) {
   try {
@@ -17,56 +23,126 @@ function isValidBase64(str: string) {
 }
 
 export async function startSpeechRecognition(
-  getAudioBase64: () => Promise<string | null>,
-  onTranscript: (text: string) => void
+  getAudioUri: () => Promise<string | null>,
+  onTranscript: (text: string) => void,
+  onSpeechEnd: () => void
 ) {
-  try {
-    console.log("Starting speech recognition...");
+  console.log("Starting speech recognition...");
+  isListening = true;
 
-    const processAudio = async () => {
-      const audioBase64 = await getAudioBase64();
-      if (!audioBase64) {
-        console.log("No audio data available");
+  const processAudio = async () => {
+    if (!isListening) return;
+
+    try {
+      const audioUri = await getAudioUri();
+      if (!audioUri) {
+        console.log("No audio data available, waiting for voice...");
         return;
       }
 
-      // Create a temporary file with the base64 content
-      const tempFilePath = `${FileSystem.cacheDirectory}temp_audio.m4a`;
-      await FileSystem.writeAsStringAsync(tempFilePath, audioBase64, { encoding: FileSystem.EncodingType.Base64 });
+      console.log("Audio data received, processing...");
 
-      // Read the file as a Uint8Array
-      const fileContent = await FileSystem.readAsStringAsync(tempFilePath, { encoding: FileSystem.EncodingType.Base64 });
-      const uint8Array = new Uint8Array(Buffer.from(fileContent, 'base64'));
+      // Reset the silence timer
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        console.log("Silence detected, stopping speech recognition");
+        isListening = false;
+        onSpeechEnd();
+      }, SILENCE_DURATION);
 
-      // Create a File object
-      const file = new File([uint8Array], 'audio.m4a', { type: 'audio/m4a' });
+      // Create FormData and send to API
+      const formData = new FormData();
+      formData.append('file', {
+        uri: audioUri,
+        type: 'audio/m4a',
+        name: 'audio.m4a'
+      } as any);
+      formData.append('model', 'whisper-1');
 
-      // Send the audio to OpenAI API
-      const response = await openai.audio.transcriptions.create({
-        file: file,
-        model: "whisper-1",
+      console.log("Sending audio to OpenAI API...");
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_OPENAI_API_KEY}`,
+        },
+        body: formData,
       });
 
-      console.log("Transcription response:", response);
-
-      if (response.text) {
-        onTranscript(response.text);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      // Schedule the next processing after a delay
-      setTimeout(processAudio, 5000); // Process every 5 seconds
-    };
+      const result = await response.json();
+      console.log("Transcription response:", result);
 
-    // Start the initial processing
-    processAudio();
+      if (result.text) {
+        onTranscript(result.text);
+      }
 
-  } catch (error) {
-    console.error('Error in speech recognition:', error);
-    throw error;
-  }
+      // Continue listening if speech is ongoing
+      if (isListening) {
+        requestAnimationFrame(processAudio);
+      }
+    } catch (error) {
+      console.error('Error in speech recognition:', error);
+      isListening = false;
+      onSpeechEnd();
+    }
+  };
+
+  // Start the initial processing
+  processAudio();
+}
+
+export function stopSpeechRecognition() {
+  isListening = false;
+  if (silenceTimer) clearTimeout(silenceTimer);
 }
 
 async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
   const response = await fetch(`data:${mimeType};base64,${base64}`);
   return response.blob();
+}
+
+export async function transcribeAudio(audioUri: string): Promise<string> {
+  console.log("Starting transcription for audio:", audioUri);
+
+  try {
+    // Read the file as base64
+    const base64Audio = await FileSystem.readAsStringAsync(audioUri, { encoding: FileSystem.EncodingType.Base64 });
+
+    console.log("Audio file read as base64, length:", base64Audio.length);
+
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', {
+      uri: `data:audio/m4a;base64,${base64Audio}`,
+      type: 'audio/m4a',
+      name: 'audio.m4a'
+    } as any);
+    formData.append('model', 'whisper-1');
+
+    console.log("Sending audio to OpenAI API...");
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.EXPO_PUBLIC_OPENAI_API_KEY}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log("Transcription response:", result);
+
+    return result.text || '';
+  } catch (error) {
+    console.error('Error in speech recognition:', error);
+    throw error;
+  }
 }
