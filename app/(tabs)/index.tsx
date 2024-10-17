@@ -37,7 +37,6 @@ const getAvatarUrl = (profile: UserProfile | null): string | null => {
 export default function HomeScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
-  const [lastReadStory, setLastReadStory] = useState<ReadingSession | null>(null);
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [currentEnergy, setCurrentEnergy] = useState(0);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -63,8 +62,6 @@ export default function HomeScreen() {
           } catch (error) {
             console.error('Error fetching Yomi energy:', error);
           }
-
-          fetchReadingHistory(userId);
         } else {
           // If no userId is found, redirect to the select profile screen
           router.replace('/select-profile');
@@ -75,17 +72,6 @@ export default function HomeScreen() {
     }
     fetchUserData();
   }, [userId]);
-
-  const fetchReadingHistory = async (id: string) => {
-    try {
-      const history = await getUserReadingHistory(id);
-      if (history.length > 0) {
-        setLastReadStory(history[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching reading history:', error);
-    }
-  };
 
   const handleReadPress = () => {
     router.push({
@@ -108,40 +94,24 @@ export default function HomeScreen() {
 
           {/* Main content */}
           <View style={styles.mainContent}>
-            {lastReadStory ? (
-              <>
-                <Text style={styles.jumpBackText}>Jump back in</Text>
-                <Pressable style={styles.lastReadStory} onPress={() => router.push(`/reading/${lastReadStory.story_id}`)}>
-                  <View style={styles.storyInfo}>
-                    <Text style={styles.storyTitle}>{lastReadStory.story_id}</Text>
-                    <Text style={styles.storyProgress}>{lastReadStory.progress} words</Text>
-                  </View>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <View style={styles.yomiContainer}>
-                  <Svg width={SHAPE_SIZE} height={SHAPE_SIZE} viewBox="0 0 184 180" style={styles.shapeBackground}>
-                    <Path
-                      d="M147.296 34.918C128.753 16.8494 116.849 -0.00828492 91.0203 3.05478e-05C63.6175 0.00879629 53.4067 18.6067 34.255 38.3606C15.6594 57.5409 1.40808e-05 59.9999 0 89.9999C-1.40808e-05 120 16.4608 124.261 32.7869 141.147C51.8094 160.822 63.7238 179.919 91.0203 180C116.65 180.075 130.169 165.246 147.296 146.065C164.501 126.798 183.788 116.871 183.998 90.9835C184.211 64.776 166.019 53.1613 147.296 34.918Z"
-                      fill={colors.green}
-                    />
-                  </Svg>
-                  <Image
-                    source={getYomiImage(totalEnergy)}
-                    style={styles.yomiImage}
-                  />
-                </View>
-                <View style={styles.messageContainer}>
-                  <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line1}</Text>
-                  <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line2}</Text>
-                </View>
-              </>
-            )}
+            <View style={styles.yomiContainer}>
+              <Svg width={SHAPE_SIZE} height={SHAPE_SIZE} viewBox="0 0 184 180" style={styles.shapeBackground}>
+                <Path
+                  d="M147.296 34.918C128.753 16.8494 116.849 -0.00828492 91.0203 3.05478e-05C63.6175 0.00879629 53.4067 18.6067 34.255 38.3606C15.6594 57.5409 1.40808e-05 59.9999 0 89.9999C-1.40808e-05 120 16.4608 124.261 32.7869 141.147C51.8094 160.822 63.7238 179.919 91.0203 180C116.65 180.075 130.169 165.246 147.296 146.065C164.501 126.798 183.788 116.871 183.998 90.9835C184.211 64.776 166.019 53.1613 147.296 34.918Z"
+                  fill={colors.green}
+                />
+              </Svg>
+              <Image
+                source={getYomiImage(totalEnergy)}
+                style={styles.yomiImage}
+              />
+            </View>
+            <View style={styles.messageContainer}>
+              <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line1}</Text>
+              <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line2}</Text>
+            </View>
             <Pressable style={styles.readButton} onPress={handleReadPress}>
-              <Text style={styles.readButtonText}>
-                {lastReadStory ? 'Continue Reading' : 'Read to Yomi'}
-              </Text>
+              <Text style={styles.readButtonText}>Read to Yomi</Text>
             </Pressable>
           </View>
 
