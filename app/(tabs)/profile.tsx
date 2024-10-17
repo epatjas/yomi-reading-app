@@ -71,6 +71,7 @@ export default function ProfileScreen() {
 
           // Fetch total reading points
           const totalPoints = await getTotalReadingPoints(storedUserId);
+          console.log('Fetched total reading points:', totalPoints);
           setTotalReadingPoints(totalPoints);
 
           // Fetch reading history
