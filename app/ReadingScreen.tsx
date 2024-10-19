@@ -1,6 +1,7 @@
 // Import necessary React and React Native components
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { MoreVertical, ArrowLeft, Square, Mic, X } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
@@ -54,6 +55,8 @@ const ReadingScreen = () => {
     Array(30).fill({ current: 0.3, target: 0.3 })
   );
   const recordingAnimation = useRef(new Animated.Value(0)).current;
+  const [textCase, setTextCase] = useState('normal'); // 'normal' or 'uppercase'
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
@@ -557,6 +560,10 @@ const ReadingScreen = () => {
     };
   }, [isReading]);
 
+  const toggleTextCase = () => {
+    setTextCase(prevCase => prevCase === 'normal' ? 'uppercase' : 'normal');
+  };
+
   // Render the component
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -566,7 +573,7 @@ const ReadingScreen = () => {
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{currentStory ? currentStory.title : 'Loading...'}</Text>
-          <TouchableOpacity onPress={() => setIsModalVisible(true)} style={styles.headerButton}>
+          <TouchableOpacity onPress={() => setIsSettingsVisible(true)} style={styles.headerButton}>
             <MoreVertical size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -582,7 +589,7 @@ const ReadingScreen = () => {
 
         <ScrollView style={styles.contentContainer}>
           {currentStory ? (
-            <Text style={[styles.content, { fontSize }]}>
+            <Text style={[styles.content, { fontSize, textTransform: textCase === 'uppercase' ? 'uppercase' : 'none' }]}>
               {currentStory.content}
             </Text>
           ) : (
@@ -644,6 +651,56 @@ const ReadingScreen = () => {
           </TouchableOpacity>
         )}
       </View>
+
+      <Modal
+        visible={isSettingsVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsSettingsVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.settingItem}>
+              <Text style={styles.settingLabel}>SIZE</Text>
+              <View style={styles.sliderContainer}>
+                <Text style={styles.sliderLabelSmall}>Aa</Text>
+                <Slider
+                  style={styles.slider}
+                  value={fontSize}
+                  onValueChange={setFontSize}
+                  minimumValue={16}
+                  maximumValue={32}
+                  step={1}
+                  minimumTrackTintColor={colors.primary}
+                  maximumTrackTintColor={colors.text}
+                  thumbTintColor={colors.primary}
+                />
+                <Text style={styles.sliderLabelLarge}>Aa</Text>
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            <View style={styles.settingItem}>
+              <Text style={styles.settingLabel}>CASE</Text>
+              <View style={styles.caseButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.caseButton, textCase === 'normal' && styles.caseButtonActive]}
+                  onPress={() => setTextCase('normal')}
+                >
+                  <Text style={styles.caseButtonText}>Aa</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.caseButton, textCase === 'uppercase' && styles.caseButtonActive]}
+                  onPress={() => setTextCase('uppercase')}
+                >
+                  <Text style={styles.caseButtonText}>AA</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -803,6 +860,72 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: colors.background02,
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 24,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  settingItem: {
+    marginBottom: 20, // Remove bottom margin as we're using the divider for spacing
+  },
+  settingLabel: {
+    fontSize: 11,
+    color: colors.text,
+    marginBottom: 16,
+    fontWeight: '500', 
+    textTransform: 'uppercase',
+    letterSpacing: 0.5, 
+  },
+  sliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  slider: {
+    flex: 1,
+    marginHorizontal: 10,
+  },
+  sliderLabelSmall: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  sliderLabelLarge: {
+    fontSize: 24,
+    color: colors.text,
+  },
+  caseButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start', 
+    gap: 16, 
+  },
+  caseButton: {
+    backgroundColor: colors.background,
+    width: 48,  // Make width and height equal for a square shape
+    height: 48, // Same as width
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center', // Center the text vertically as well
+  },
+  caseButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  caseButtonText: {
+    fontSize: 18,
+    color: colors.text,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#373846",
+    marginVertical: 24, // Add some vertical margin to space it from the setting items
   },
 });
 
