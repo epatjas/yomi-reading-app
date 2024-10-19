@@ -1,6 +1,6 @@
 // Import necessary React and React Native components
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { MoreVertical, ArrowLeft, Square, Mic, X } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -21,6 +21,7 @@ import {
 import { addReadingEnergy, ENERGY_GAIN_PER_10_SECONDS } from '../services/yomiEnergyService';
 import { createClient } from '@supabase/supabase-js';
 import { LinearGradient } from 'expo-linear-gradient';
+import { syllabify } from '../finnishHyphenation';
 
 // Global variable to store the current recording
 let globalRecording: Audio.Recording | null = null;
@@ -57,6 +58,7 @@ const ReadingScreen = () => {
   const recordingAnimation = useRef(new Animated.Value(0)).current;
   const [textCase, setTextCase] = useState('normal'); // 'normal' or 'uppercase'
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+  const [isHyphenationEnabled, setIsHyphenationEnabled] = useState(false);
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
@@ -564,6 +566,10 @@ const ReadingScreen = () => {
     setTextCase(prevCase => prevCase === 'normal' ? 'uppercase' : 'normal');
   };
 
+  const syllabifyText = (text: string) => {
+    return text.split(' ').map(word => syllabify(word)).join(' ');
+  };
+
   // Render the component
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -588,13 +594,14 @@ const ReadingScreen = () => {
         </View>
 
         <ScrollView style={styles.contentContainer}>
-          {currentStory ? (
-            <Text style={[styles.content, { fontSize, textTransform: textCase === 'uppercase' ? 'uppercase' : 'none' }]}>
-              {currentStory.content}
-            </Text>
-          ) : (
-            <Text style={styles.content}>Loading story...</Text>
-          )}
+          <Text style={[styles.content, { 
+            fontSize, 
+            textTransform: textCase === 'uppercase' ? 'uppercase' : 'none' 
+          }]}>
+            {isHyphenationEnabled 
+              ? syllabifyText(currentStory?.content || '')
+              : currentStory?.content}
+          </Text>
         </ScrollView>
 
         {isRecordingInterfaceVisible && (
@@ -658,8 +665,18 @@ const ReadingScreen = () => {
         transparent={true}
         onRequestClose={() => setIsSettingsVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setIsSettingsVisible(false)}
+        >
           <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={() => setIsSettingsVisible(false)}
+            >
+              <X size={24} color={colors.text} />
+            </TouchableOpacity>
             <View style={styles.settingItem}>
               <Text style={styles.settingLabel}>SIZE</Text>
               <View style={styles.sliderContainer}>
@@ -698,8 +715,25 @@ const ReadingScreen = () => {
                 </TouchableOpacity>
               </View>
             </View>
+            
+            <View style={styles.divider} />
+            
+            <View style={styles.settingItem}>
+              <Text style={styles.settingLabel}>TAVUTUS</Text>
+              <View style={styles.switchContainer}>
+                <Switch
+                  value={isHyphenationEnabled}
+                  onValueChange={setIsHyphenationEnabled}
+                  trackColor={{ false: colors.background, true: colors.primary }}
+                  thumbColor={colors.text}
+                />
+                <Text style={styles.switchLabel}>
+                  {isHyphenationEnabled ? 'Ta-vu-vii-vat' : 'Tavuviivat'}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -861,7 +895,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -926,6 +960,23 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#373846",
     marginVertical: 24, // Add some vertical margin to space it from the setting items
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  switchLabel: {
+    marginLeft: 8,
+    color: colors.text,
+    fontSize: 18,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.background02, // Or any color that fits your design
   },
 });
 

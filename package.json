@@ -43,6 +43,8 @@
     "expo-system-ui": "~3.0.7",
     "expo-task-manager": "~11.8.2",
     "expo-web-browser": "~13.0.3",
+    "hyphenation.fi": "^0.2.1",
+    "hypher": "^0.2.5",
     "lucide-react-native": "^0.451.0",
     "openai": "^4.67.3",
     "react": "18.2.0",
