@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { globalStyles, colors, fonts } from '../app/styles/globalStyles';
+import LottieView from 'lottie-react-native';
+import { globalStyles, colors } from '../app/styles/globalStyles';
+import YomiLogo from '../assets/images/yomi-logo.svg';
+import BackgroundShape from '../assets/images/background-shape.svg';
 import { getUserProfiles } from '../services/userService';
 
 const { width, height } = Dimensions.get('window');
@@ -12,19 +15,21 @@ export default function LoadingScreen() {
   useEffect(() => {
     const checkProfilesAndNavigate = async () => {
       try {
+        // Wait for at least 3 seconds to show the loading screen
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         const profiles = await getUserProfiles();
         
-        // Simulate a loading delay
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        if (profiles.length > 0) {
-          router.replace('/select-profile');
-        } else {
+        if (profiles.length === 0) {
+          // No profiles exist, navigate to create profile screen
           router.replace('/create-profile');
+        } else {
+          // Profiles exist, navigate to select profile screen
+          router.replace('/select-profile');
         }
       } catch (error) {
         console.error('Error checking profiles:', error);
-        // In case of error, default to create profile screen
+        // In case of error, navigate to create profile as a fallback
         router.replace('/create-profile');
       }
     };
@@ -34,11 +39,20 @@ export default function LoadingScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>yomi</Text>
-      <Image
-        source={require('../assets/images/cat-paw.png')}
-        style={styles.pawImage}
-      />
+      <View style={styles.contentContainer}>
+        <View style={styles.backgroundContainer}>
+          <BackgroundShape width={width * 0.6} height={width * 0.6} fill={colors.yellowDark} />
+        </View>
+        <LottieView
+          source={require('../assets/animations/Black Cat.json')}
+          style={styles.pawAnimation}
+          autoPlay
+          loop
+        />
+        <View style={styles.logoWrapper}>
+          <YomiLogo width={width * 0.3} height={width * 0.3} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -46,21 +60,33 @@ export default function LoadingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background01,
+    backgroundColor: colors.yellowLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logo: {
-    fontFamily: fonts.regular,
-    fontSize: 48,
-    color: colors.text,
+  contentContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  pawImage: {
-    width: width * 0.2,
-    height: width * 0.2,
+  logoContainer: {
     position: 'absolute',
-    bottom: height * 0.1,
-    resizeMode: 'contain',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoWrapper: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pawAnimation: {
+    width: width * 0.8, // Increased size to surround the logo
+    height: width * 0.8, // Keeping it square
+    position: 'absolute',
+  },
+  backgroundContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
-
