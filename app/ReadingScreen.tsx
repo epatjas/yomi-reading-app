@@ -15,9 +15,9 @@ import {
 import ReadingEnergyDisplay from '../components/ReadingEnergyDisplay';
 import { 
   getUserTotalEnergy, 
-  updateUserEnergy, 
   updateUserReadingPoints 
 } from '../services/userService';
+import { addReadingEnergy, ENERGY_GAIN_PER_10_SECONDS } from '../services/yomiEnergyService';
 import { createClient } from '@supabase/supabase-js';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -251,8 +251,8 @@ const ReadingScreen = () => {
       setEnergyProgress(prev => {
         const newProgress = prev + 1;
         if (newProgress >= 10) {
-          setSessionEnergy(prevEnergy => prevEnergy + 10);
-          setRecentGain(10);
+          setSessionEnergy(prevEnergy => prevEnergy + ENERGY_GAIN_PER_10_SECONDS);
+          setRecentGain(ENERGY_GAIN_PER_10_SECONDS);
           setTimeout(() => setRecentGain(0), 2000);
           return 0;
         }
@@ -404,7 +404,6 @@ const ReadingScreen = () => {
       useNativeDriver: true,
     }).start();
     stopSpeechRecognition();
-
     let audioUrl = '';
     if (recording) {
       try {
@@ -432,6 +431,14 @@ const ReadingScreen = () => {
     const startTimeDate = startTime || new Date();
     const durationInSeconds = Math.round((endTime.getTime() - startTimeDate.getTime()) / 1000);
 
+    // Update energy using addReadingEnergy
+    const updatedEnergy = await addReadingEnergy(userId, durationInSeconds);
+    console.log('Updated energy returned:', updatedEnergy);
+
+    // Update reading points
+    await updateUserReadingPoints(userId, sessionEnergy);
+    console.log('Updated reading points by:', sessionEnergy);
+
     // Save the reading session to the database
     try {
       console.log('Preparing to save reading session...');
@@ -452,23 +459,23 @@ const ReadingScreen = () => {
       console.log('Reading session object:', JSON.stringify(readingSession, null, 2));
       const savedSession = await saveReadingSessionToDatabase(readingSession);
       console.log('Reading session saved successfully:', savedSession);
-    } catch (error) {
-      console.error('Error saving reading session:', error);
-      Alert.alert('Error', 'Failed to save reading session. Your progress may not be recorded.');
-    }
 
-    // Navigate to ReadingResultsScreen
-    router.push({
-      pathname: '/ReadingResultsScreen',
-      params: {
-        readingTime: durationInSeconds.toString(),
-        readingPoints: sessionEnergy.toString(),
-        energy: totalEnergy.toString(),
-        audioUri: audioUrl,
-        transcript: transcript,
-        userId: userId,
-      },
-    });
+      // Navigate to ReadingResultsScreen
+      router.push({
+        pathname: '/ReadingResultsScreen',
+        params: {
+          readingTime: durationInSeconds.toString(),
+          readingPoints: sessionEnergy.toString(),
+          energy: updatedEnergy.toString(), // Use the updated energy
+          audioUri: audioUrl,
+          transcript: transcript,
+          userId: userId,
+        },
+      });
+    } catch (error) {
+      console.error('Error saving reading session or updating energy:', error);
+      Alert.alert('Error', 'Failed to save reading session or update energy. Your progress may not be recorded.');
+    }
   };
 
   // Add cancelRecording function
@@ -533,6 +540,22 @@ const ReadingScreen = () => {
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
   }, [isRecordingInterfaceVisible]);
+
+  // Instead, add a new useEffect to update energy every 10 seconds
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (isReading) {
+      intervalId = setInterval(() => {
+        const energyGain = ENERGY_GAIN_PER_10_SECONDS;
+        setSessionEnergy(prevEnergy => prevEnergy + energyGain);
+        setRecentGain(energyGain);
+        setTimeout(() => setRecentGain(0), 2000);
+      }, 10000); // 10 seconds
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isReading]);
 
   // Render the component
   return (

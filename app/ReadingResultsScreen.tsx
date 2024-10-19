@@ -7,6 +7,7 @@ import { colors, fonts, layout } from './styles/globalStyles';
 import YomiEnergyDisplay from '../components/YomiEnergyDisplay';
 import { LinearGradient, LinearGradientProps } from 'expo-linear-gradient';
 import { getYomiEnergy } from '../services/yomiEnergyService';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Add this utility function at the top of your file
 const formatTime = (milliseconds: number): string => {
@@ -178,8 +179,20 @@ const ReadingResultsScreen: React.FC = () => {
     userId: string;
   }>();
 
-  console.log('Audio URI:', audioUri);
-  console.log('Transcript:', transcript);
+  console.log('ReadingResultsScreen params:', { readingTime, readingPoints, energy, audioUri, userId });
+
+  const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy || '0'));
+
+  useEffect(() => {
+    const fetchEnergy = async () => {
+      if (userId) {
+        const fetchedEnergy = await getYomiEnergy(userId);
+        console.log('Fetched energy in ReadingResultsScreen:', fetchedEnergy);
+        setCurrentEnergy(fetchedEnergy);
+      }
+    };
+    fetchEnergy();
+  }, [userId]);
 
   // Convert reading time from seconds to minutes and seconds
   const readingTimeSeconds = readingTime ? parseInt(readingTime) : 0;
@@ -190,17 +203,6 @@ const ReadingResultsScreen: React.FC = () => {
   console.log(`Calculated readingTimeMinutes: ${readingTimeMinutes} minutes and ${readingTimeRemainingSeconds} seconds`);
 
   const [showTranscript, setShowTranscript] = useState(false);
-  const [currentEnergy, setCurrentEnergy] = useState(Math.round(parseInt(energy)));
-
-  useEffect(() => {
-    const fetchCurrentEnergy = async () => {
-      if (userId) {
-        const latestEnergy = await getYomiEnergy(userId);
-        setCurrentEnergy(latestEnergy);
-      }
-    };
-    fetchCurrentEnergy();
-  }, [userId]);
 
   const toggleTranscript = () => {
     setShowTranscript(!showTranscript);

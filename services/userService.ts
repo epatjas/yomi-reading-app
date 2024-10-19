@@ -172,6 +172,11 @@ export async function updateUserEnergy(userId: string, energyToAdd: number): Pro
       .single();
 
     if (error) throw error;
+
+    console.log('Fetched current energy:', userData.current_energy);
+    console.log('Calculated new energy:', newEnergy);
+    console.log('Energy update result:', data);
+
     return data?.current_energy || 0;
   } catch (error) {
     console.error('Error updating user energy:', error);
