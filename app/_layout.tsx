@@ -5,7 +5,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import useFonts from '../hooks/useFonts'; // Adjust the path as necessary
 import { registerBackgroundFetchAsync } from '../services/backgroundTasks';
-import ErrorBoundary from './components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,18 +25,16 @@ export default function RootLayout() {
   }
 
   return (
-    <ErrorBoundary>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="reading-results" options={{ headerShown: false }} />
-          {/* Add other non-tab screens here */}
-        </Stack>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="reading-results" options={{ headerShown: false }} />
+        {/* Add other non-tab screens here */}
+      </Stack>
+    </ThemeProvider>
   );
 }

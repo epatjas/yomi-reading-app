@@ -1,7 +1,7 @@
 // Import necessary React and React Native components
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert } from 'react-native';
-import { MoreVertical, ArrowLeft, Square } from 'lucide-react-native';
+import { MoreVertical, ArrowLeft, Square, Mic, X } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getStories, Story } from '../services/storyService';
@@ -19,6 +19,7 @@ import {
   updateUserReadingPoints 
 } from '../services/userService';
 import { createClient } from '@supabase/supabase-js';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Global variable to store the current recording
 let globalRecording: Audio.Recording | null = null;
@@ -48,6 +49,11 @@ const ReadingScreen = () => {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [transcript, setTranscript] = useState('');
   const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [isRecordingInterfaceVisible, setIsRecordingInterfaceVisible] = useState(false);
+  const [waveformData, setWaveformData] = useState<Array<{ current: number, target: number }>>(
+    Array(30).fill({ current: 0.3, target: 0.3 })
+  );
+  const recordingAnimation = useRef(new Animated.Value(0)).current;
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
@@ -302,6 +308,13 @@ const ReadingScreen = () => {
       setIsReading(true);
       setStartTime(new Date());
       setTranscript('');
+      setIsRecordingInterfaceVisible(true);
+
+      Animated.timing(recordingAnimation, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
 
       const newRecording = await startRecording();
       if (newRecording) {
@@ -334,6 +347,7 @@ const ReadingScreen = () => {
     } catch (error) {
       console.error('Error starting reading:', error);
       setIsReading(false);
+      setIsRecordingInterfaceVisible(false);
       Alert.alert('Error', 'Failed to start recording. Please try again.');
     }
   };
@@ -383,6 +397,12 @@ const ReadingScreen = () => {
   const handleStopReading = async () => {
     console.log('Attempting to stop reading...');
     setIsReading(false);
+    setIsRecordingInterfaceVisible(false);
+    Animated.timing(recordingAnimation, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
     stopSpeechRecognition();
 
     let audioUrl = '';
@@ -451,6 +471,69 @@ const ReadingScreen = () => {
     });
   };
 
+  // Add cancelRecording function
+  const cancelRecording = async () => {
+    if (recording) {
+      try {
+        await recording.stopAndUnloadAsync();
+        setIsReading(false);
+        setIsRecordingInterfaceVisible(false);
+        Animated.timing(recordingAnimation, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      } catch (error) {
+        console.error('Error canceling recording:', error);
+      }
+    }
+  };
+
+  // Add this function inside the ReadingScreen component, before the return statement
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+ // Wave form animation
+  useEffect(() => {
+    let animationFrame: number;
+  
+    const animateWaveform = () => {
+      setWaveformData(prev => prev.map(({ current, target }) => {
+        // Slowly move current value towards target
+        const newCurrent = current + (target - current) * 0.05;
+        
+        // Occasionally change the target
+        const newTarget = Math.random() < 0.05 ? Math.random() * 0.7 + 0.3 : target;
+  
+        return { current: newCurrent, target: newTarget };
+      }));
+  
+      animationFrame = requestAnimationFrame(animateWaveform);
+    };
+  
+    if (isRecordingInterfaceVisible) {
+      animationFrame = requestAnimationFrame(animateWaveform);
+      Animated.timing(recordingAnimation, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(recordingAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  
+    return () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+    };
+  }, [isRecordingInterfaceVisible]);
+
   // Render the component
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -484,30 +567,59 @@ const ReadingScreen = () => {
           )}
         </ScrollView>
 
-        <TouchableOpacity
-          style={styles.buttonContainer}
-          onPress={isReading ? handleStopReading : handleStartReading}
-        >
-          {isReading ? (
-            <View style={styles.stopButtonContainer}>
-              <Animated.View
-                style={[
-                  styles.pulseCircle,
-                  {
-                    transform: [{ scale: pulseAnim }],
-                  },
-                ]}
-              />
-              <View style={styles.stopButton}>
-                <Square color={colors.text} size={24} />
-              </View>
+        {isRecordingInterfaceVisible && (
+          <Animated.View style={[
+            styles.recordingInterface,
+            {
+              transform: [
+                {
+                  translateY: recordingAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [100, 0],
+                  }),
+                },
+              ],
+              opacity: recordingAnimation,
+            },
+          ]}>
+            <TouchableOpacity onPress={cancelRecording} style={styles.cancelButton}>
+              <X size={20} color="white" />
+            </TouchableOpacity>
+            <View style={styles.waveformContainer}>
+              {waveformData.map(({ current }, index) => (
+                <LinearGradient
+                  key={index}
+                  colors={['#C652F0', '#5F79FF']} // Gradient colors from light to dark
+                  start={{ x: 0, y: 0 }} // Start from top
+                  end={{ x: 0, y: 1 }} // End at bottom
+                  style={[
+                    styles.waveformBar,
+                    { 
+                      height: `${current * 100}%`,
+                    }
+                  ]}
+                />
+              ))}
             </View>
-          ) : (
-            <View style={styles.startButton}>
-              <Square color={colors.primary} size={24} fill={colors.primary} />
+            <View style={styles.durationContainer}>
+              <Text style={styles.durationText}>
+                {formatDuration(Math.round((new Date().getTime() - (startTime?.getTime() || 0)) / 1000))}
+              </Text>
             </View>
-          )}
-        </TouchableOpacity>
+            <TouchableOpacity onPress={handleStopReading} style={styles.stopButton}>
+              <Square size={20} color="black" />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {!isRecordingInterfaceVisible && (
+          <TouchableOpacity
+            style={styles.micButton}
+            onPress={handleStartReading}
+          >
+            <Mic size={24} color={colors.text} />
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -600,13 +712,74 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: 'rgba(209, 52, 56, 0.2)', // 20% opacity of #D13438
   },
-  stopButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.error, // This will now be #D13438
+
+  recordingInterface: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.background02, // Solid dark background
+    borderWidth: 1,
+    borderColor: colors.stroke, // Slightly lighter border for subtle definition
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5, // For Android shadow
+    padding: 12,
+    borderRadius: 30,
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    height: 60, // Fixed height for the interface
+  },
+  cancelButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(50, 50, 50, 0.8)', // Slightly lighter than the background
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  waveformContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 28, // Reduced height to match ReadingResultsScreen
+    marginHorizontal: 16,
+  },
+  waveformBar: {
+    width: 2, // Slightly thinner bars
+    marginHorizontal: 1, // Space between bars
+    borderRadius: 4,
+    height: '100%', // Full height of container
+  },
+  durationContainer: {
+    marginRight: 16,
+  },
+  durationText: {
+    color: colors.text,
+    fontFamily: fonts.medium,
+    fontSize: 16,
+  },
+  stopButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: colors.primary,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
