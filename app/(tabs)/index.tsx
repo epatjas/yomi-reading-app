@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getUserReadingHistory, getUserTotalEnergy, getUserProfile, User as UserProfile } from '../../services/userService';
+import { getUserReadingHistory, getUserTotalEnergy, getUserProfile, User as UserProfile, getUserStreak, getLastReadDate } from '../../services/userService';
 import { getYomiEnergy } from '../../services/yomiEnergyService';
 import YomiEnergyDisplay from '../../components/YomiEnergyDisplay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReadingSession } from '../../services/readingSessionsHelpers';
 import Svg, { Path } from 'react-native-svg';
 import { Dimensions } from 'react-native';
+import { Flame, Check } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 const SHAPE_SIZE = Math.min(128, width * 0.3); // This ensures it's at most 128px, but can be smaller on narrow screens
@@ -41,6 +42,8 @@ export default function HomeScreen() {
   const [currentEnergy, setCurrentEnergy] = useState(0);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [yomiEnergy, setYomiEnergy] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [lastReadDate, setLastReadDate] = useState<Date | null>(null);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -62,6 +65,13 @@ export default function HomeScreen() {
           } catch (error) {
             console.error('Error fetching Yomi energy:', error);
           }
+
+          // Fetch streak data
+          const userStreak = await getUserStreak(userId);
+          setStreak(userStreak);
+
+          const lastRead = await getLastReadDate(userId);
+          setLastReadDate(lastRead);
         } else {
           // If no userId is found, redirect to the select profile screen
           router.replace('/select-profile');
@@ -78,6 +88,31 @@ export default function HomeScreen() {
       pathname: '/reading',
       params: { userId: userId as string }
     });
+  };
+
+  const getDayOfWeek = (date: Date): string => {
+    const days = ['SU', 'MA', 'TI', 'KE', 'TO', 'PE', 'LA'];
+    return days[date.getDay()];
+  };
+
+  const renderDayMarkers = () => {
+    const dayMarkers = ['MA', 'TI', 'KE', 'TO', 'PE', 'LA', 'SU'];
+    const today = new Date().getDay();
+    const currentDayIndex = today === 0 ? 6 : today - 1;
+
+    const hasReadToday = lastReadDate && 
+      lastReadDate.toDateString() === new Date().toDateString();
+
+    return dayMarkers.map((day, index) => (
+      <View key={day} style={styles.dayMarker}>
+        <Text style={[styles.dayText, index === currentDayIndex && styles.todayText]}>{day}</Text>
+        <View style={[styles.dayDot, index === currentDayIndex && styles.todayDot]}>
+          {index === currentDayIndex && hasReadToday && (
+            <Check size={12} color={colors.background02} />
+          )}
+        </View>
+      </View>
+    ));
   };
 
   return (
@@ -120,6 +155,28 @@ export default function HomeScreen() {
             energy={yomiEnergy} 
             onStatusPress={() => console.log("Navigate to Yomi's status page")}
           />
+
+          {/* Streak display */}
+          <View style={styles.streakContainer}>
+            <View style={styles.streakCounter}>
+              <View style={styles.flippedFlame}>
+                <Flame size={24} color="#F0A992" strokeWidth={1.5} />
+              </View>
+              <Text style={styles.streakNumber}>{streak}</Text>
+              <Flame size={24} color="#F0A992" strokeWidth={1.5} />
+            </View>
+            <View style={styles.weekContainer}>
+              <View style={styles.dayMarkersContainer}>
+                {renderDayMarkers()}
+              </View>
+              <View style={styles.dividerContainer}>
+                <View style={styles.divider} />
+              </View>
+              <Text style={styles.streakMessage}>
+                Keep up the great work! Practice daily to build your streak and master new skills.
+              </Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -313,5 +370,77 @@ const styles = StyleSheet.create({
   },
   shapeBackground: {
     position: 'absolute',
+    borderWidth: 1,
+    borderColor: colors.stroke,
+  },
+  streakContainer: {
+    backgroundColor: colors.background02,
+    borderRadius: 16,
+    padding: layout.padding,
+    marginBottom: layout.spacing,
+  },
+  streakCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: layout.spacing,
+  },
+  streakNumber: {
+    fontFamily: fonts.bold,
+    fontSize: 48,
+    color: colors.yellowMedium,
+    marginHorizontal: 4,
+  },
+  weekContainer: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: layout.padding,
+  },
+  dayMarkersContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: layout.spacing,
+  },
+  dividerContainer: {
+    marginHorizontal: -layout.padding,
+    marginBottom: layout.spacing,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  dayMarker: {
+    alignItems: 'center',
+  },
+  dayText: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  todayText: {
+    color: colors.yellowMedium,
+  },
+  dayDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  todayDot: {
+    backgroundColor: colors.yellowMedium,
+  },
+  streakMessage: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  flippedFlame: {
+    transform: [{ scaleX: -1 }],
   },
 });

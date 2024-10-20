@@ -249,3 +249,76 @@ export async function getTotalReadingPoints(userId: string): Promise<number> {
   console.log('Calculated total reading points:', totalPoints);
   return totalPoints;
 }
+
+// Add these functions to your existing userService.ts file
+
+export async function getUserStreak(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('current_streak')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user streak:', error);
+    return 0;
+  }
+
+  return data?.current_streak || 0;
+}
+
+export async function updateUserStreak(userId: string): Promise<number> {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Get the user's current streak and last read date
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('current_streak, last_read_date')
+    .eq('id', userId)
+    .single();
+
+  if (userError) {
+    console.error('Error fetching user data:', userError);
+    return 0;
+  }
+
+  let newStreak = 1; // Default to 1 if starting a new streak
+
+  if (userData?.last_read_date) {
+    const lastReadDate = new Date(userData.last_read_date);
+    if (lastReadDate >= yesterday) {
+      // If last read was yesterday or today, increment the streak
+      newStreak = (userData.current_streak || 0) + 1;
+    }
+  }
+
+  // Update the user's streak and last read date
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ current_streak: newStreak, last_read_date: now.toISOString() })
+    .eq('id', userId);
+
+  if (updateError) {
+    console.error('Error updating user streak:', updateError);
+    return 0;
+  }
+
+  return newStreak;
+}
+
+export async function getLastReadDate(userId: string): Promise<Date | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('last_read_date')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching last read date:', error);
+    return null;
+  }
+
+  return data?.last_read_date ? new Date(data.last_read_date) : null;
+}
