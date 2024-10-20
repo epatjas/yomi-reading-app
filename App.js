@@ -1,8 +1,9 @@
 import React from 'react';
-import { Text, View, ActivityIndicator } from 'react-native';
+import { Text, View, ActivityIndicator, Platform } from 'react-native';
 import useFonts from './hooks/useFonts'; // Adjust the path as necessary
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { UIManager } from 'react-native';
 
 // Import your screen components
 import HomeScreen from './screens/HomeScreen'; // Adjust the path as necessary
@@ -17,6 +18,12 @@ function LoadingScreen() {
       <Text>Loading...</Text>
     </View>
   );
+}
+
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
 }
 
 export default function App() {

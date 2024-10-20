@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, FlatList, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
-import { getUserProfiles, getUserReadingHistory } from '../services/userService';
+import { getUserProfiles } from '../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Profile = {
@@ -11,9 +11,10 @@ type Profile = {
   avatar_url: string;
 };
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
 const ITEM_WIDTH = width / COLUMN_COUNT;
+const AVATAR_SIZE = Math.min(ITEM_WIDTH * 0.8, height * 0.15); // Limit avatar size
 
 export default function SelectProfileScreen() {
   const router = useRouter();
@@ -66,21 +67,24 @@ export default function SelectProfileScreen() {
     return (
       <Pressable style={styles.profileItem} onPress={() => handleSelectProfile(item)}>
         <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-        <Text style={styles.username}>{item.username}</Text>
+        <Text style={styles.username} numberOfLines={1} ellipsizeMode="tail">{item.username}</Text>
       </Pressable>
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Who's reading?</Text>
-      <FlatList
-        data={[...profiles, 'add']}
-        renderItem={renderItem}
-        keyExtractor={(item) => (typeof item === 'string' ? item : item.id)}
-        numColumns={COLUMN_COUNT}
-        contentContainerStyle={styles.profileList}
-      />
+      <View style={styles.content}>
+        <Text style={styles.title}>Who's reading?</Text>
+        <FlatList
+          data={[...profiles, 'add']}
+          renderItem={renderItem}
+          keyExtractor={(item) => (typeof item === 'string' ? item : item.id)}
+          numColumns={COLUMN_COUNT}
+          contentContainerStyle={styles.profileListContainer}
+          columnWrapperStyle={styles.profileListColumnWrapper}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -89,18 +93,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
     paddingHorizontal: layout.padding,
+    paddingTop: height * 0.1, // Reduced top padding
   },
   title: {
     fontSize: 24,
     fontFamily: fonts.regular,
     color: colors.text,
-    marginTop: layout.spacing * 2,
-    marginBottom: layout.spacing * 3,
     textAlign: 'center',
+    marginBottom: height * 0.05, // Reduced space below the title
   },
-  profileList: {
-    paddingBottom: layout.spacing * 2,
+  profileListContainer: {
+    paddingBottom: layout.spacing * 2, // Add some bottom padding
+  },
+  profileListColumnWrapper: {
+    justifyContent: 'space-around', // Distribute items evenly
   },
   profileItem: {
     width: ITEM_WIDTH,
@@ -108,15 +118,15 @@ const styles = StyleSheet.create({
     marginBottom: layout.spacing * 2,
   },
   avatar: {
-    width: ITEM_WIDTH * 0.8,
-    height: ITEM_WIDTH * 0.8,
-    borderRadius: (ITEM_WIDTH * 0.8) / 2,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     marginBottom: layout.spacing,
   },
   addNewAvatar: {
-    width: ITEM_WIDTH * 0.8,
-    height: ITEM_WIDTH * 0.8,
-    borderRadius: (ITEM_WIDTH * 0.8) / 2,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     backgroundColor: colors.background02,
     justifyContent: 'center',
     alignItems: 'center',
@@ -128,8 +138,9 @@ const styles = StyleSheet.create({
   },
   username: {
     fontFamily: fonts.regular,
-    fontSize: 16,
+    fontSize: 14, // Slightly smaller font size
     color: colors.text,
     textAlign: 'center',
+    width: ITEM_WIDTH * 0.9, // Limit text width
   },
 });
