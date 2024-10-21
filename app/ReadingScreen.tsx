@@ -555,7 +555,7 @@ const ReadingScreen = () => {
           />
         </View>
 
-        <ScrollView style={styles.contentContainer}>
+        <ScrollView contentContainerStyle={styles.scrollViewContent}>
           <Text style={[styles.content, { 
             fontSize, 
             textTransform: textCase === 'uppercase' ? 'uppercase' : 'none' 
@@ -939,6 +939,9 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: colors.background02, // Or any color that fits your design
+  },
+  scrollViewContent: {
+    paddingBottom: 120, // Add extra padding at the bottom
   },
 });
 
