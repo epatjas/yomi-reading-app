@@ -6,7 +6,6 @@ import { MoreVertical, ArrowLeft, Square, Mic, X } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getStories, Story } from '../services/storyService';
-import { startSpeechRecognition, stopSpeechRecognition } from '../services/speechRecognitionService';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import {
@@ -49,7 +48,6 @@ const ReadingScreen = () => {
   const [isReading, setIsReading] = useState(false);
   const [energyProgress, setEnergyProgress] = useState(0);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [transcript, setTranscript] = useState('');
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isRecordingInterfaceVisible, setIsRecordingInterfaceVisible] = useState(false);
   const [waveformData, setWaveformData] = useState<Array<{ current: number, target: number }>>(
@@ -312,7 +310,6 @@ const ReadingScreen = () => {
       console.log('Starting reading session...');
       setIsReading(true);
       setStartTime(new Date());
-      setTranscript('');
       setIsRecordingInterfaceVisible(true);
 
       Animated.timing(recordingAnimation, {
@@ -335,17 +332,7 @@ const ReadingScreen = () => {
           return null;
         };
         
-        startSpeechRecognition(
-          getAudioUri, 
-          (transcriptText: string) => {
-            console.log('Received transcript:', transcriptText);
-            setTranscript(prevTranscript => prevTranscript + ' ' + transcriptText);
-          },
-          () => {
-            console.log('Speech recognition ended');
-            handleStopReading();
-          }
-        );
+        // Keep only the recording logic
       } else {
         throw new Error('Failed to start recording');
       }
@@ -408,7 +395,6 @@ const ReadingScreen = () => {
       duration: 300,
       useNativeDriver: true,
     }).start();
-    stopSpeechRecognition();
     let audioUrl = '';
     if (recording) {
       try {
@@ -473,7 +459,6 @@ const ReadingScreen = () => {
           readingPoints: sessionEnergy.toString(),
           energy: updatedEnergy.toString(), // Use the updated energy
           audioUri: audioUrl,
-          transcript: transcript,
           userId: userId,
         },
       });
