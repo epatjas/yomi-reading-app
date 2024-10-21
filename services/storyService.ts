@@ -10,8 +10,8 @@ export interface Story {
   title: string;
   content: string;
   "word-count": number;
-  "difficulty-level": string;
-  cover_image_url: string; // Make sure this matches exactly with your Supabase column name
+  difficulty: string; // This should be renamed to 'difficulty'
+  cover_image_url: string;
 }
 
 export async function getStories(): Promise<Story[]> {
@@ -24,5 +24,12 @@ export async function getStories(): Promise<Story[]> {
     console.error('Error fetching stories:', error);
     return [];
   }
-  return data || [];
+  
+  // Map the data to ensure consistency with the Story interface
+  const mappedData = data?.map(story => ({
+    ...story,
+    difficulty: story["difficulty-level"] // Map 'difficulty-level' to 'difficulty'
+  })) || [];
+
+  return mappedData;
 }

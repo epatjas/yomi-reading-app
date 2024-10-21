@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { Play, ArrowLeft } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -21,6 +21,7 @@ export default function LibraryScreen() {
   const [stories, setStories] = useState<Story[]>([]);
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [userIdState, setUserIdState] = useState<string | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -47,27 +48,58 @@ export default function LibraryScreen() {
     handleStorySelection(story.id);
   };
 
+  const filteredStories = selectedDifficulty
+    ? stories.filter(story => story.difficulty === selectedDifficulty)
+    : stories;
+
+  const renderDifficultyFilter = () => (
+    <View style={styles.filterContainer}>
+      {['Easy', 'Medium', 'Hard'].map((difficulty) => (
+        <TouchableOpacity
+          key={difficulty}
+          style={[
+            styles.filterButton,
+            selectedDifficulty === difficulty && styles.filterButtonActive
+          ]}
+          onPress={() => setSelectedDifficulty(selectedDifficulty === difficulty ? null : difficulty)}
+        >
+          <Text style={styles.filterButtonText}>
+            {difficulty === 'Easy' && '☆ '}
+            {difficulty === 'Medium' && '☆☆ '}
+            {difficulty === 'Hard' && '☆☆☆ '}
+            {difficulty}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
   const renderBookItem = ({ item }: { item: Story }) => (
     <Pressable style={styles.bookItem} onPress={() => handleBookPress(item)}>
-      {item.cover_image_url ? (
-        <View style={styles.bookImage}>
+      <View style={styles.bookImageContainer}>
+        {item.cover_image_url ? (
           <Image 
             source={{ uri: item.cover_image_url }}
             style={styles.bookImage}
             resizeMode="cover"
           />
-          <ActivityIndicator style={StyleSheet.absoluteFill} />
+        ) : (
+          <View style={[styles.bookImage, styles.placeholderImage]}>
+            <Text style={styles.placeholderText}>{item.title[0]}</Text>
+          </View>
+        )}
+        <View style={styles.difficultyTag}>
+          <Text style={styles.difficultyText}>
+            {item.difficulty === 'Easy' && '☆'}
+            {item.difficulty === 'Medium' && '☆☆'}
+            {item.difficulty === 'Hard' && '☆☆☆'}
+          </Text>
         </View>
-      ) : (
-        <View style={[styles.bookImage, styles.placeholderImage]}>
-          <Text style={styles.placeholderText}>{item.title[0]}</Text>
-        </View>
-      )}
+      </View>
       <View style={styles.bookInfo}>
         <Text style={styles.bookTitle}>{item.title}</Text>
         <Text style={styles.bookWords}>{item["word-count"] ? `${item["word-count"]} sanaa` : 'Word count unavailable'}</Text>
       </View>
-      <Play size={20} color={colors.primary} />
     </Pressable>
   );
 
@@ -99,11 +131,14 @@ export default function LibraryScreen() {
         {/* New title */}
         <Text style={styles.pageTitle}>What do you want to read?</Text>
 
-        {/* Book list */}
+        {renderDifficultyFilter()}
+
         <FlatList
-          data={stories}
+          data={filteredStories}
           renderItem={renderBookItem}
           keyExtractor={item => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.bookList}
         />
       </View>
     </SafeAreaView>
@@ -145,22 +180,42 @@ const styles = StyleSheet.create({
     marginBottom: layout.spacing * 2,
     textAlign: 'left',
   },
-  bookItem: {
+  filterContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginBottom: layout.spacing * 2,
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: colors.background02,
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  filterButtonText: {
+    fontFamily: fonts.medium,
+    color: colors.text,
+  },
+  bookList: {
+    justifyContent: 'space-between',
+  },
+  bookItem: {
+    width: '48%',
+    marginBottom: layout.spacing * 2,
     backgroundColor: colors.background02,
     borderRadius: 12,
-    padding: layout.padding * 0.75,
-    paddingRight: layout.padding,
-    marginBottom: layout.spacing,
-    borderWidth: 1,  // Add stroke
-    borderColor: colors.stroke,  // Use stroke color from global styles
+    overflow: 'hidden',
+  },
+  bookImageContainer: {
+    position: 'relative',
   },
   bookImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: layout.spacing,
+    width: '100%',
+    aspectRatio: 1,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   placeholderImage: {
     backgroundColor: colors.background02,
@@ -172,23 +227,32 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.text,
   },
+  difficultyTag: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  difficultyText: {
+    color: colors.text,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
   bookInfo: {
-    flex: 1,
+    padding: layout.padding * 0.5,
   },
   bookTitle: {
     fontFamily: fonts.medium,
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
     marginBottom: 4,
   },
   bookWords: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-  },
-  playIconContainer: {
-    backgroundColor: colors.yellowMedium,
-    borderRadius: 12,
-    padding: 8,
   },
 });
