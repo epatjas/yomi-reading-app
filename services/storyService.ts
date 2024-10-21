@@ -24,7 +24,5 @@ export async function getStories(): Promise<Story[]> {
     console.error('Error fetching stories:', error);
     return [];
   }
-
-  console.log('Fetched data:', data); // This will log the raw data from Supabase
   return data || [];
 }

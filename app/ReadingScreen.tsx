@@ -37,8 +37,8 @@ const ReadingScreen = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentStory, setCurrentStory] = useState<Story | null>(null);
   const { userId, storyId } = useLocalSearchParams<{ userId: string, storyId: string }>();
-  console.log('ReadingScreen opened with userId:', userId);
   const router = useRouter();
+  const hasLoggedUserId = useRef(false);
   const [hasPermission, setHasPermission] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [totalEnergy, setTotalEnergy] = useState(0);
@@ -60,14 +60,11 @@ const ReadingScreen = () => {
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
-    if (!userId) {
-      Alert.alert('Error', 'User ID is missing. Please log in again.');
-      router.replace('/login');
+    if (!hasLoggedUserId.current) {
+      console.log('ReadingScreen opened with userId:', userId);
+      hasLoggedUserId.current = true;
     }
-  }, [userId]);
 
-  // Effect to initialize the screen with user data and story
-  useEffect(() => {
     if (!userId) {
       console.error('userId is undefined');
       Alert.alert('Error', 'User ID is missing. Please log in again.');
@@ -207,14 +204,12 @@ const ReadingScreen = () => {
   // Function to start recording
   const startRecording = async (): Promise<Audio.Recording | null> => {
     try {
-      console.log('Requesting permissions..');
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      console.log('Starting recording..');
       const { recording: newRecording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
@@ -227,9 +222,7 @@ const ReadingScreen = () => {
 
   // Function to stop recording
   const stopRecording = async (): Promise<void> => {
-    console.log('Stopping recording..');
     if (!recording) {
-      console.log('No active recording to stop');
       return;
     }
 
@@ -345,7 +338,6 @@ const ReadingScreen = () => {
   };
 
   const uploadAudioToSupabase = async (uri: string): Promise<string> => {
-    console.log('Attempting to upload audio to Supabase:', uri);
     try {
       const fileContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       const fileExtension = uri.split('.').pop();
@@ -367,7 +359,6 @@ const ReadingScreen = () => {
         .from('audio-recordings')
         .getPublicUrl(filePath);
 
-      console.log('Audio successfully uploaded to Supabase:', publicUrlData.publicUrl);
       return publicUrlData.publicUrl;
     } catch (error) {
       console.error('Error in uploadAudioToSupabase:', error);
@@ -387,7 +378,6 @@ const ReadingScreen = () => {
 
   // Function to handle stopping the reading session
   const handleStopReading = async () => {
-    console.log('Attempting to stop reading...');
     setIsReading(false);
     setIsRecordingInterfaceVisible(false);
     Animated.timing(recordingAnimation, {
@@ -398,23 +388,15 @@ const ReadingScreen = () => {
     let audioUrl = '';
     if (recording) {
       try {
-        console.log('Stopping recording...');
         await recording.stopAndUnloadAsync();
         const uri = recording.getURI();
-        console.log('Recording stopped. URI:', uri);
         
         if (uri) {
-          console.log('Attempting to upload audio:', uri);
           audioUrl = await uploadAudioToSupabase(uri);
-          console.log('Audio uploaded successfully, URL:', audioUrl);
-        } else {
-          console.log('No audio URI available after stopping recording');
         }
       } catch (error) {
         console.error('Error stopping recording or uploading audio:', error);
       }
-    } else {
-      console.log('No active recording to stop');
     }
 
     // Calculate reading time
@@ -424,15 +406,12 @@ const ReadingScreen = () => {
 
     // Update energy using addReadingEnergy
     const updatedEnergy = await addReadingEnergy(userId, durationInSeconds);
-    console.log('Updated energy returned:', updatedEnergy);
 
     // Update reading points
     await updateUserReadingPoints(userId, sessionEnergy);
-    console.log('Updated reading points by:', sessionEnergy);
 
     // Save the reading session to the database
     try {
-      console.log('Preparing to save reading session...');
       const readingSession: Omit<ReadingSession, 'id'> = {
         user_id: userId,
         story_id: currentStory?.id || '',
@@ -447,9 +426,7 @@ const ReadingScreen = () => {
         story_title: currentStory?.title
       };
 
-      console.log('Reading session object:', JSON.stringify(readingSession, null, 2));
       const savedSession = await saveReadingSessionToDatabase(readingSession);
-      console.log('Reading session saved successfully:', savedSession);
 
       // Navigate to ReadingResultsScreen
       router.push({
@@ -457,7 +434,7 @@ const ReadingScreen = () => {
         params: {
           readingTime: durationInSeconds.toString(),
           readingPoints: sessionEnergy.toString(),
-          energy: updatedEnergy.toString(), // Use the updated energy
+          energy: updatedEnergy.toString(),
           audioUri: audioUrl,
           userId: userId,
         },
