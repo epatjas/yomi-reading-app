@@ -5,8 +5,8 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export type ReadingSession = {
-  id?: string; // Make this optional
+export interface ReadingSession {
+  id: string;
   user_id: string;
   story_id: string;
   start_time: string;
@@ -17,29 +17,26 @@ export type ReadingSession = {
   audio_url: string;
   progress: number;
   completed: boolean;
-  story_title?: string; // Add this line, making it optional
-};
+}
 
-export async function saveReadingSessionToDatabase(session: Omit<ReadingSession, 'id'>) {
-  console.log('Saving session to database:', JSON.stringify(session, null, 2));
-  try {
-    const { story_title, ...sessionWithoutTitle } = session; // Exclude story_title
-    const { data, error } = await supabase
-      .from('reading_sessions')
-      .insert(sessionWithoutTitle)
-      .select();
+export const saveReadingSessionToDatabase = async (readingSession: Omit<ReadingSession, 'id'>): Promise<ReadingSession> => {
+  const { data, error } = await supabase
+    .from('reading_sessions')
+    .insert(readingSession)
+    .select()
+    .single();
 
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
-    console.log('Session saved successfully:', data);
-    return data;
-  } catch (error) {
+  if (error) {
     console.error('Error saving reading session:', error);
     throw error;
   }
-}
+
+  if (!data) {
+    throw new Error('No data returned from insert operation');
+  }
+
+  return data;
+};
 
 export function calculateWordsPerMinute(
   wordCount: number, 

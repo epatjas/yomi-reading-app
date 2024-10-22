@@ -57,6 +57,7 @@ const ReadingScreen = () => {
   const [textCase, setTextCase] = useState('normal'); // 'normal' or 'uppercase'
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isHyphenationEnabled, setIsHyphenationEnabled] = useState(false);
+  const [isRecordingUnloaded, setIsRecordingUnloaded] = useState(false);
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
@@ -148,13 +149,12 @@ const ReadingScreen = () => {
   useFocusEffect(
     React.useCallback(() => {
       return () => {
-        if (recording) {
+        if (recording && !isRecordingUnloaded) {
           console.log('Screen losing focus, stopping any active recording');
-          recording.stopAndUnloadAsync().catch(console.error);
-          setRecording(null);
+          stopRecording().catch(console.error);
         }
       };
-    }, [])
+    }, [recording, isRecordingUnloaded])
   );
 
   // Function to force release existing recordings
@@ -222,17 +222,26 @@ const ReadingScreen = () => {
 
   // Function to stop recording
   const stopRecording = async (): Promise<void> => {
-    if (!recording) {
+    if (!recording || isRecordingUnloaded) {
+      console.log('Recording already stopped or unloaded');
       return;
     }
 
     try {
+      console.log('Stopping and unloading recording');
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       setAudioUri(uri);
       setRecording(null);
+      setIsRecordingUnloaded(true);
     } catch (error) {
-      console.error('Error stopping recording:', error);
+      if (error instanceof Error && error.message.includes('already been unloaded')) {
+        console.log('Recording was already unloaded');
+        setRecording(null);
+        setIsRecordingUnloaded(true);
+      } else {
+        console.error('Error stopping recording:', error);
+      }
     }
   };
 
@@ -385,11 +394,12 @@ const ReadingScreen = () => {
       duration: 300,
       useNativeDriver: true,
     }).start();
+    
     let audioUrl = '';
-    if (recording) {
+    if (recording && !isRecordingUnloaded) {
       try {
-        await recording.stopAndUnloadAsync();
-        const uri = recording.getURI();
+        await stopRecording();
+        const uri = audioUri;
         
         if (uri) {
           audioUrl = await uploadAudioToSupabase(uri);
@@ -412,7 +422,7 @@ const ReadingScreen = () => {
 
     // Save the reading session to the database
     try {
-      const readingSession: Omit<ReadingSession, 'id'> = {
+      const readingSessionData: Omit<ReadingSession, 'id' | 'story_title'> = {
         user_id: userId,
         story_id: currentStory?.id || '',
         start_time: startTimeDate.toISOString(),
@@ -422,22 +432,32 @@ const ReadingScreen = () => {
         reading_points: sessionEnergy,
         audio_url: audioUrl,
         progress: 100,
-        completed: true,
-        story_title: currentStory?.title
+        completed: true
       };
 
-      const savedSession = await saveReadingSessionToDatabase(readingSession);
+      const savedSession = await saveReadingSessionToDatabase(readingSessionData);
 
-      // Navigate to ReadingResultsScreen
+      // Navigate to QuizScreen
+      console.log('Navigating to QuizScreen with params:', { 
+        readingSessionId: savedSession.id,
+        storyId: currentStory?.id,
+        readingTime: durationInSeconds.toString(),
+        readingPoints: sessionEnergy.toString(),
+        energy: updatedEnergy.toString(),
+        audioUri: audioUrl,
+        userId: userId
+      });
       router.push({
-        pathname: '/ReadingResultsScreen',
-        params: {
+        pathname: '/QuizScreen',
+        params: { 
+          readingSessionId: savedSession.id,
+          storyId: currentStory?.id,
           readingTime: durationInSeconds.toString(),
           readingPoints: sessionEnergy.toString(),
           energy: updatedEnergy.toString(),
           audioUri: audioUrl,
-          userId: userId,
-        },
+          userId: userId
+        }
       });
     } catch (error) {
       console.error('Error saving reading session or updating energy:', error);

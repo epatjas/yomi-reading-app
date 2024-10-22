@@ -18,6 +18,9 @@ export const colors = {
   lavender: 'hsl(237, 70%, 81%)',    // Lavender
   lavenderDark: 'hsl(237, 68%, 76%)', // Darker lavender
   error: 'hsl(368, 63%, 51%)',
+  correct: '#72CDA8',                // New correct answer color
+  incorrect: '#EE5775',              // New incorrect answer color
+  buttonTextDark: '#1A1A1A', // Or any dark color you prefer
 };
 
 export const fonts = {
