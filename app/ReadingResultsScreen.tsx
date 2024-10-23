@@ -17,7 +17,7 @@ const formatTime = (milliseconds: number): string => {
 
 const ReadingResultsScreen: React.FC = () => {
   const router = useRouter();
-  const { readingSessionId, readingTime, readingPoints, energy, audioUri, correctAnswers, totalQuestions, userId } = useLocalSearchParams<{
+  const { readingSessionId, readingTime, readingPoints, energy, audioUri, correctAnswers, totalQuestions, userId, storyId } = useLocalSearchParams<{
     readingSessionId: string;
     readingTime: string;
     readingPoints: string;
@@ -26,6 +26,7 @@ const ReadingResultsScreen: React.FC = () => {
     correctAnswers: string;
     totalQuestions: string;
     userId: string;
+    storyId: string;
   }>();
 
   const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy || '0'));
@@ -132,7 +133,12 @@ const ReadingResultsScreen: React.FC = () => {
             <Text style={styles.buttonText}>Read next story</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity 
+            onPress={() => router.push({
+              pathname: '/ReadingScreen',
+              params: { storyId: storyId, userId: userId }
+            })}
+          >
             <Text style={styles.linkText}>Or read again</Text>
           </TouchableOpacity>
         </View>

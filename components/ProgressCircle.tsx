@@ -44,8 +44,8 @@ const ProgressCircle: React.FC<ProgressCircleProps> = ({ progress, size, strokeW
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 20,
-    right: 20,
+    top: 4,
+    right: 4,
   },
 });
 

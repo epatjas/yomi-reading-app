@@ -202,6 +202,7 @@ const QuizScreen = () => {
       setIsAnswerChecked(false);
       setIsCorrect(false);
       setAttempts(0);
+      setShowFeedback(false); // Close the feedback section
     } else {
       // Quiz finished, navigate to results screen
       router.push({
@@ -211,7 +212,7 @@ const QuizScreen = () => {
           readingTime: params.readingTime,
           readingPoints: params.readingPoints,
           energy: params.energy,
-          audioUri: params.audioUri, // Pass along the audioUri
+          audioUri: params.audioUri,
           correctAnswers: correctAnswers.toString(),
           totalQuestions: questions.length.toString(),
           userId: params.userId
@@ -230,6 +231,10 @@ const QuizScreen = () => {
 
   const handleListenPress = () => {
     // Implement text-to-speech functionality
+  };
+
+  const handleSkipQuestion = () => {
+    handleNextQuestion();
   };
 
   if (error) {
@@ -379,7 +384,11 @@ const QuizScreen = () => {
               {isCorrect ? 'Jatka' : 'Selvä'}
             </Text>
           </TouchableOpacity>
-          {!isCorrect && <Text style={styles.tryAgainText}>Hyppää seuraavaan</Text>}
+          {!isCorrect && (
+            <TouchableOpacity onPress={handleSkipQuestion}>
+              <Text style={styles.skipQuestionText}>Hyppää seuraavaan</Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       )}
     </SafeAreaView>
@@ -447,8 +456,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: colors.background02,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: layout.spacing,
     paddingBottom: 34,
   },
@@ -523,6 +532,14 @@ const styles = StyleSheet.create({
     color: colors.incorrect,
     textAlign: 'center',
     marginTop: layout.spacing,
+  },
+  skipQuestionText: {
+    fontSize: 16,
+    fontFamily: fonts.regular,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 16,
+    // Removed textDecorationLine: 'underline',
   },
 });
 
