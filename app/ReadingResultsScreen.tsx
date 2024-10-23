@@ -116,7 +116,6 @@ const ReadingResultsScreen: React.FC = () => {
             onStatusPress={() => router.push('/yomi-status')}
           />
           
-          <Text style={styles.listenText}>Listen to your reading</Text>
           {audioUri && <AudioPlayer audioUri={audioUri} />}
           
           <View style={styles.bottomPadding} />
@@ -167,7 +166,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: colors.background,
     padding: layout.padding,
-    paddingBottom: 34, // Extra padding for devices with home indicator
+    paddingBottom: 4, // Extra padding for devices with home indicator
     borderTopWidth: 1,
     borderTopColor: colors.stroke,
   },
@@ -279,13 +278,6 @@ const styles = StyleSheet.create({
     width: 2, // Slightly thinner bars
     borderRadius: 4,
     marginHorizontal: 1,
-  },
-  listenText: {
-    fontSize: 18,
-    fontFamily: fonts.medium,
-    color: colors.text,
-    marginBottom: 16,
-    marginTop: 12,
   },
   button: {
     backgroundColor: colors.primary,

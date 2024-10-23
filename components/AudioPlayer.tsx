@@ -104,16 +104,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
     <View style={styles.container}>
       <TouchableOpacity onPress={playPauseSound} style={styles.playPauseButton}>
         {isPlaying ? (
-          <Pause color={colors.text} size={24} />
+          <Pause color={colors.text} size={20} />
         ) : (
-          <Play color={colors.text} size={24} />
+          <Play color={colors.text} size={20} />
         )}
       </TouchableOpacity>
       <View style={styles.progressContainer}>
         {!isActive ? (
           <Text style={styles.listenText}>Kuuntele</Text>
         ) : (
-          <>
+          <View style={styles.timeAndWaveformContainer}>
+            <Text style={styles.timeText}>{formatTime(position)}</Text>
             <View style={styles.waveformContainer}>
               {animatedValues.current.map((value, index) => (
                 <Animated.View
@@ -131,11 +132,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
                 />
               ))}
             </View>
-            <View style={styles.timeContainer}>
-              <Text style={styles.timeText}>{formatTime(position)}</Text>
-              <Text style={styles.timeText}>{formatTime(duration)}</Text>
-            </View>
-          </>
+            <Text style={styles.timeText}>{formatTime(duration)}</Text>
+          </View>
         )}
       </View>
     </View>
@@ -148,39 +146,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background02,
     borderRadius: 12,
-    padding: 12,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: colors.stroke,
+    shadowColor: '#111212',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5, // for Android
+
   },
   playPauseButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   progressContainer: {
     flex: 1,
+  },
+  timeAndWaveformContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   waveformContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 32,
-    marginBottom: 8,
+    flex: 1,
+    marginHorizontal: 4,
   },
   waveformBar: {
     flex: 1,
-    marginHorizontal: 1,
+    marginHorizontal: 0.5,
     borderRadius: 2,
   },
-  timeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   timeText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.regular,
     color: colors.text,
+    width: 40,
   },
   listenText: {
     fontSize: 16,
