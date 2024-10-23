@@ -182,7 +182,7 @@ const ReadingResultsScreen: React.FC = () => {
   }>();
 
   const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy || '0'));
-  const [overallEnergy, setOverallEnergy] = useState(0);
+  const [overallEnergy, setOverallEnergy] = useState(parseInt(energy || '0'));
 
   useEffect(() => {
     const fetchData = async () => {
@@ -204,6 +204,21 @@ const ReadingResultsScreen: React.FC = () => {
     };
     fetchData();
   }, [readingSessionId, userId]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (userId) {
+        try {
+          const currentOverallEnergy = await getCurrentYomiEnergy(userId);
+          console.log('Current overall Yomi Energy:', currentOverallEnergy);
+          setOverallEnergy(currentOverallEnergy);
+        } catch (error) {
+          console.error('Error fetching energy data:', error);
+        }
+      }
+    };
+    fetchData();
+  }, [userId]);
 
   // Convert reading time from seconds to minutes and seconds
   const readingTimeSeconds = readingTime ? parseInt(readingTime) : 0;

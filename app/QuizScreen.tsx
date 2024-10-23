@@ -210,11 +210,11 @@ const QuizScreen = () => {
           readingSessionId: params.readingSessionId,
           readingTime: params.readingTime,
           readingPoints: params.readingPoints,
-          energy: params.energy,
+          energy: params.energy, // This should now be the correct updated energy
           audioUri: params.audioUri,
           correctAnswers: correctAnswers.toString(),
           totalQuestions: questions.length.toString(),
-          userId: params.userId // Add this line
+          userId: params.userId
         }
       });
     }

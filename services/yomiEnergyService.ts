@@ -69,7 +69,7 @@ export async function addReadingEnergy(userId: string, readingDurationSeconds: n
   const energyGain = Math.floor(readingDurationSeconds / 10) * ENERGY_GAIN_PER_10_SECONDS;
   console.log(`Calculated energyGain: ${energyGain}`);
   
-  const currentEnergy = await getYomiEnergy(userId);
+  const currentEnergy = await getCurrentYomiEnergy(userId);
   console.log(`Current energy before update: ${currentEnergy}`);
   
   const newEnergy = await updateYomiEnergy(userId, currentEnergy + energyGain);
