@@ -16,34 +16,34 @@ export async function initializeYomiEnergy(userId: string) {
   return INITIAL_ENERGY;
 }
 
-export async function getYomiEnergy(userId: string) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('current_energy, last_energy_update')
-    .eq('id', userId)
-    .single();
+export async function getYomiEnergy(readingSessionId: string): Promise<number> {
+  try {
+    console.log('Fetching Yomi Energy for reading session:', readingSessionId);
+    const { data, error } = await supabase
+      .from('reading_sessions')
+      .select('energy_gained')
+      .eq('id', readingSessionId)
+      .single();
 
-  if (error) {
-    console.error('Error fetching Yomi energy:', error);
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log('No energy data found for this reading session');
+        return 0;
+      }
+      throw error;
+    }
+
+    if (data && typeof data.energy_gained === 'number') {
+      console.log('Energy gained:', data.energy_gained);
+      return data.energy_gained;
+    } else {
+      console.log('Unexpected data structure:', data);
+      return 0;
+    }
+  } catch (error) {
+    console.error('Error fetching Yomi Energy:', error);
     return 0;
   }
-
-  if (!data) return 0;
-
-  // Calculate energy decay
-  const lastUpdate = new Date(data.last_energy_update);
-  const now = new Date();
-  const hoursPassed = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
-  const energyDecay = Math.floor(hoursPassed * ENERGY_DECAY_PER_HOUR);
-
-  let newEnergy = Math.max(MIN_ENERGY, Math.round(data.current_energy - energyDecay));
-
-  // Update the energy if it has changed
-  if (newEnergy !== data.current_energy) {
-    await updateYomiEnergy(userId, newEnergy);
-  }
-
-  return newEnergy;
 }
 
 export async function updateYomiEnergy(userId: string, newEnergy: number) {
@@ -97,5 +97,31 @@ export async function updateUserEnergy(userId: string, newEnergy: number) {
   } else {
     console.error('No data returned from energy update');
     throw new Error('Failed to update energy');
+  }
+}
+
+export async function getCurrentYomiEnergy(userId: string): Promise<number> {
+  try {
+    console.log('Fetching current Yomi Energy for user:', userId);
+    const { data, error } = await supabase
+      .from('users')
+      .select('current_energy')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    if (data && typeof data.current_energy === 'number') {
+      console.log('Current Yomi Energy:', data.current_energy);
+      return data.current_energy;
+    } else {
+      console.log('Unexpected data structure:', data);
+      return 0;
+    }
+  } catch (error) {
+    console.error('Error fetching current Yomi Energy:', error);
+    return 0;
   }
 }

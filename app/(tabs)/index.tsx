@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView } fr
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getUserReadingHistory, getUserTotalEnergy, getUserProfile, User as UserProfile, getUserStreak, getLastReadDate } from '../../services/userService';
-import { getYomiEnergy } from '../../services/yomiEnergyService';
+import { getYomiEnergy, getCurrentYomiEnergy } from '../../services/yomiEnergyService';
 import YomiEnergyDisplay from '../../components/YomiEnergyDisplay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReadingSession } from '../../services/readingSessionsHelpers';
@@ -51,14 +51,13 @@ export default function HomeScreen() {
         const storedUserId = await AsyncStorage.getItem('userId');
         const id = userId || storedUserId;
         if (id) {
-          // Ensure id is a string before passing it to functions
           const userId = Array.isArray(id) ? id[0] : id;
           
           const userProfile = await getUserProfile(userId);
           setUserAvatar(getAvatarUrl(userProfile));
           
           try {
-            const energy = await getYomiEnergy(userId);
+            const energy = await getCurrentYomiEnergy(userId);
             setCurrentEnergy(energy);
             setTotalEnergy(energy);
             setYomiEnergy(energy);

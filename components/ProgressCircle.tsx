@@ -18,7 +18,7 @@ const ProgressCircle: React.FC<ProgressCircleProps> = ({ progress, size, strokeW
     <View style={styles.container}>
       <Svg width={size} height={size}>
         <Circle
-          stroke={colors.background02}
+          stroke={colors.stroke}
           fill="none"
           cx={size / 2}
           cy={size / 2}
@@ -44,8 +44,8 @@ const ProgressCircle: React.FC<ProgressCircleProps> = ({ progress, size, strokeW
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 20,
-    right: 20,
+    top: 4,
+    right: 2,
   },
 });
 

@@ -54,6 +54,7 @@ const QuizScreen = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const feedbackAnimation = useRef(new Animated.Value(0)).current;
   const [showMessage, setShowMessage] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
 
   useEffect(() => {
     console.log('QuizScreen mounted with params:', params);
@@ -138,7 +139,7 @@ const QuizScreen = () => {
   const handleCheckAnswer = async () => {
     if (!selectedAnswer) {
       setShowMessage(true);
-      setTimeout(() => setShowMessage(false), 3000); // Hide message after 3 seconds
+      setTimeout(() => setShowMessage(false), 3000);
       return;
     }
 
@@ -148,6 +149,10 @@ const QuizScreen = () => {
     setIsAnswerChecked(true);
     setShowFeedback(true);
     setAttempts(attempts + 1);
+
+    if (isCorrect) {
+      setCorrectAnswers(prev => prev + 1);
+    }
 
     // Animate feedback container
     Animated.timing(feedbackAnimation, {
@@ -206,7 +211,10 @@ const QuizScreen = () => {
           readingTime: params.readingTime,
           readingPoints: params.readingPoints,
           energy: params.energy,
-          audioUri: params.audioUri
+          audioUri: params.audioUri,
+          correctAnswers: correctAnswers.toString(),
+          totalQuestions: questions.length.toString(),
+          userId: params.userId // Add this line
         }
       });
     }
@@ -302,12 +310,12 @@ const QuizScreen = () => {
       <View style={styles.container}>
         <View style={styles.topRow}>
           <TouchableOpacity onPress={handleListenPress} style={styles.listenButton}>
-            <Volume2 size={24} color={colors.textSecondary} />
+            <Volume2 size={20} color={colors.textSecondary} />
           </TouchableOpacity>
           <ProgressCircle 
             progress={(currentQuestionIndex + 1) / questions.length} 
-            size={24} // Adjusted from 40 to 32
-            strokeWidth={3} // Adjusted from 4 to 3 for better proportion
+            size={32} 
+            strokeWidth={3} 
           />
         </View>
         
@@ -391,7 +399,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: layout.spacing * 2,
+    marginBottom: layout.spacing,
   },
   listenButton: {
     width: 40,
@@ -409,9 +417,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     marginTop: layout.spacing * 2,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
+  
   },
   buttonText: {
     fontSize: 18,
@@ -449,12 +455,12 @@ const styles = StyleSheet.create({
   feedbackContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: layout.spacing,
+    marginBottom: 0,
   },
   yomiImageContainer: {
-    width: 60,
+    width: 56,
     height: 68,
-    borderRadius: 30,
+    borderRadius: 0,
     overflow: 'hidden',
     marginRight: 12,
     justifyContent: 'center',

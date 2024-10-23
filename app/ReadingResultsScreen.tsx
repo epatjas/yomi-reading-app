@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Platform, ScrollView } from 'react-native';
-import { ArrowLeft, Play, Pause, Clock, CheckSquare, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Platform, ScrollView, Image } from 'react-native';
+import { ArrowLeft, Play, Pause, Clock, CheckSquare, ChevronDown, ChevronUp, CheckCircle, Timer, BookCheck } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { colors, fonts, layout } from './styles/globalStyles';
 import YomiEnergyDisplay from '../components/YomiEnergyDisplay';
 import { LinearGradient, LinearGradientProps } from 'expo-linear-gradient';
-import { getYomiEnergy } from '../services/yomiEnergyService';
-import { useFocusEffect } from '@react-navigation/native';
+import { getYomiEnergy, getCurrentYomiEnergy } from '../services/yomiEnergyService';
+import { supabase } from '../services/readingSessionsHelpers';
 
 // Add this utility function at the top of your file
 const formatTime = (milliseconds: number): string => {
@@ -170,29 +170,40 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
 
 const ReadingResultsScreen: React.FC = () => {
   const router = useRouter();
-  const { readingTime, readingPoints, energy, audioUri, transcript, userId } = useLocalSearchParams<{
+  const { readingSessionId, readingTime, readingPoints, energy, audioUri, correctAnswers, totalQuestions, userId } = useLocalSearchParams<{
+    readingSessionId: string;
     readingTime: string;
     readingPoints: string;
     energy: string;
     audioUri: string;
-    transcript: string;
+    correctAnswers: string;
+    totalQuestions: string;
     userId: string;
   }>();
 
-  console.log('ReadingResultsScreen params:', { readingTime, readingPoints, energy, audioUri, userId });
-
   const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy || '0'));
+  const [overallEnergy, setOverallEnergy] = useState(0);
 
   useEffect(() => {
-    const fetchEnergy = async () => {
-      if (userId) {
-        const fetchedEnergy = await getYomiEnergy(userId);
-        console.log('Fetched energy in ReadingResultsScreen:', fetchedEnergy);
-        setCurrentEnergy(fetchedEnergy);
+    const fetchData = async () => {
+      if (readingSessionId) {
+        try {
+          const sessionEnergy = await getYomiEnergy(readingSessionId);
+          console.log('Energy gained in this session:', sessionEnergy);
+          setCurrentEnergy(sessionEnergy);
+
+          if (userId) {
+            const currentOverallEnergy = await getCurrentYomiEnergy(userId);
+            console.log('Current overall Yomi Energy:', currentOverallEnergy);
+            setOverallEnergy(currentOverallEnergy);
+          }
+        } catch (error) {
+          console.error('Error fetching energy data:', error);
+        }
       }
     };
-    fetchEnergy();
-  }, [userId]);
+    fetchData();
+  }, [readingSessionId, userId]);
 
   // Convert reading time from seconds to minutes and seconds
   const readingTimeSeconds = readingTime ? parseInt(readingTime) : 0;
@@ -202,11 +213,14 @@ const ReadingResultsScreen: React.FC = () => {
   console.log(`Received readingTime: ${readingTimeSeconds} seconds`);
   console.log(`Calculated readingTimeMinutes: ${readingTimeMinutes} minutes and ${readingTimeRemainingSeconds} seconds`);
 
-  const [showTranscript, setShowTranscript] = useState(false);
-
-  const toggleTranscript = () => {
-    setShowTranscript(!showTranscript);
+  const calculateComprehensionPercentage = (correct: number, total: number) => {
+    return total > 0 ? Math.round((correct / total) * 100) : 0;
   };
+
+  const comprehensionPercentage = calculateComprehensionPercentage(
+    parseInt(correctAnswers || '0'),
+    parseInt(totalQuestions || '1')
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -220,7 +234,7 @@ const ReadingResultsScreen: React.FC = () => {
           <View style={styles.statsContainer}>
             <View style={[styles.statBox, styles.purpleBox]}>
               <View style={[styles.iconContainer, styles.purpleIconContainer]}>
-                <Clock color={colors.background} size={24} />
+                <Timer color={colors.background} size={24} />
               </View>
               <Text style={styles.statValue}>
                 {readingTimeMinutes}:{readingTimeRemainingSeconds.toString().padStart(2, '0')}
@@ -229,7 +243,7 @@ const ReadingResultsScreen: React.FC = () => {
             </View>
             <View style={[styles.statBox, styles.greenBox]}>
               <View style={[styles.iconContainer, styles.greenIconContainer]}>
-                <CheckSquare color={colors.background} size={24} />
+                <BookCheck color={colors.background} size={24} />
               </View>
               <Text style={styles.statValue}>
                 {readingPoints ? parseInt(readingPoints) : 0}
@@ -238,26 +252,25 @@ const ReadingResultsScreen: React.FC = () => {
             </View>
           </View>
           
+          <View style={styles.comprehensionContainer}>
+            <View style={styles.comprehensionBox}>
+              <View style={styles.comprehensionTextContainer}>
+                <Text style={styles.comprehensionValue}>{comprehensionPercentage}%</Text>
+                <Text style={styles.comprehensionLabel}>Reading comprehension</Text>
+              </View>
+              <View style={styles.comprehensionIconContainer}>
+                <CheckCircle color={colors.background} size={24} />
+              </View>
+            </View>
+          </View>
+          
           <YomiEnergyDisplay 
-            energy={currentEnergy} 
+            energy={overallEnergy} 
             onStatusPress={() => router.push('/yomi-status')}
           />
           
           <Text style={styles.listenText}>Listen to your reading</Text>
           {audioUri && <AudioPlayer audioUri={audioUri} />}
-          
-          <TouchableOpacity onPress={toggleTranscript} style={styles.transcriptToggle}>
-            <Text style={styles.transcriptToggleText}>
-              {showTranscript ? 'Hide Transcription' : 'Show Transcription'}
-            </Text>
-            {showTranscript ? <ChevronUp color={colors.text} size={24} /> : <ChevronDown color={colors.text} size={24} />}
-          </TouchableOpacity>
-          
-          {showTranscript && (
-            <View style={styles.transcriptionContainer}>
-              <Text style={styles.transcriptionText}>{transcript}</Text>
-            </View>
-          )}
         </ScrollView>
         
         <View style={styles.bottomContainer}>
@@ -265,7 +278,7 @@ const ReadingResultsScreen: React.FC = () => {
             style={styles.button} 
             onPress={() => router.push({
               pathname: '/(tabs)/reading',
-              params: { userId: userId }
+              params: { userId: readingSessionId.split('-')[0] }
             })}
           >
             <Text style={styles.buttonText}>Read next story</Text>
@@ -311,7 +324,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background02,
     borderRadius: 16,
     padding: 12,
-    position: 'relative', // Add this to allow absolute positioning of children
+    position: 'relative',
   },
   purpleBox: {
     backgroundColor: colors.lavender,
@@ -322,13 +335,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   iconContainer: {
-    position: 'absolute', // Position absolutely within the statBox
-    top: 16, // Align with the top padding of the statBox
-    right: 16, // Align with the left padding of the statBox
+    position: 'absolute',
+    top: 12,
+    right: 12,
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -339,22 +351,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.greenDark,
   },
   statValue: {
-    fontSize: 36, // Slightly smaller to fit both minutes and seconds
+    fontSize: 36,
     fontFamily: fonts.regular,
     color: colors.background,
     marginBottom: 4,
     marginTop: 40,
     textAlign: 'left',
   },
-  statUnit: {
-    fontSize: 16,
-    fontFamily: fonts.regular,
-  },
   statLabel: {
     fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.background,
-    textAlign: 'left', // Center the text horizontally
+    textAlign: 'left',
   },
   audioPlayerContainer: {
     flexDirection: 'row',
@@ -436,40 +444,59 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  transcriptionTitle: {
-    fontSize: 18,
-    fontFamily: fonts.medium,
-    color: colors.text,
-    marginTop: 20,
+  
+  pinkBox: {
+    backgroundColor: colors.pink,
+  },
+  pinkIconContainer: {
+    backgroundColor: colors.pinkDark,
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    position: 'absolute',
+    top: 16,
+    right: 16,
+  },
+  fullWidthBox: {
+    marginTop: 12,
     marginBottom: 12,
   },
-  transcriptionContainer: {
-    backgroundColor: colors.background02,
-    borderRadius: 12,
+  comprehensionContainer: {
+    marginBottom: 12,
+  },
+  comprehensionBox: {
+    backgroundColor: colors.pink,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 8,
-    maxHeight: 200, // Limit the height and make it scrollable if needed
-  },
-  transcriptionText: {
-    fontSize: 16,
-    fontFamily: fonts.regular,
-    color: colors.text,
-    lineHeight: 24,
-  },
-  transcriptToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.background02,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
-    marginBottom: 4,
   },
-  transcriptToggleText: {
-    fontSize: 16,
+  comprehensionTextContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+  comprehensionValue: {
+    fontSize: 24,
     fontFamily: fonts.medium,
-    color: colors.text,
+    color: colors.background,
+  },
+  comprehensionLabel: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.background,
+    marginTop: 4,
+  },
+  comprehensionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: colors.pinkDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
 });
 

@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   },
   question: {
     fontSize: 20,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.regular,
     color: colors.text,
     marginBottom: layout.spacing * 2,
   },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     minHeight: 160,
     position: 'relative',
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: colors.stroke,
   },
   selectedAnswer: {
     borderColor: colors.primary,

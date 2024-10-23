@@ -10,7 +10,7 @@ export const colors = {
   yellowDark: 'hsl(51, 75%, 40%)',    // Dark yellow
   text: 'hsl(240, 100%, 97%)',        // Light text color
   textSecondary: 'hsl(0, 0%, 58%)',   // Secondary text color
-  stroke: 'hsl(240, 13%, 11%)',       // Stroke color
+  stroke: 'hsl(236, 15%, 20%)',       // Stroke color
   buttonText: 'hsl(240, 100%, 97%)',  // Button text color (same as text)
   mint: 'hsl(156, 48%, 63%)',        // Mint green
   green: 'hsl(83, 37%, 85%)',        // Green
@@ -21,6 +21,8 @@ export const colors = {
   correct: '#72CDA8',                // New correct answer color
   incorrect: '#EE5775',              // New incorrect answer color
   buttonTextDark: '#1A1A1A', // Or any dark color you prefer
+  pink: 'hsl(11, 33%, 88%)',
+  pinkDark: 'hsl(11, 49%, 81%)',
 };
 
 export const fonts = {
