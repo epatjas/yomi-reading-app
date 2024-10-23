@@ -6,8 +6,11 @@ import { createClient } from '@supabase/supabase-js';
 import QuestionCard from '../components/QuestionCard';
 import ProgressCircle from '../components/ProgressCircle';
 import Header from '../components/Header';
-import { Volume2, AlertCircle, CheckCircle2 } from 'lucide-react-native';
+import { Volume2, } from 'lucide-react-native';
 import { shuffle } from 'lodash';
+import { Audio } from 'expo-av';
+import OpenAI from 'openai';
+import * as FileSystem from 'expo-file-system';
 
 // Add these lines to create the Supabase client
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -18,6 +21,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
+
+const openai = new OpenAI({
+  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
+});
 
 interface Question {
   id: string;
@@ -55,6 +62,7 @@ const QuizScreen = () => {
   const feedbackAnimation = useRef(new Animated.Value(0)).current;
   const [showMessage, setShowMessage] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   useEffect(() => {
     console.log('QuizScreen mounted with params:', params);
@@ -69,6 +77,10 @@ const QuizScreen = () => {
       setShuffledAnswers(getShuffledAnswers(questions[0]));
     }
   }, [questions]);
+
+  useEffect(() => {
+    // No need to initialize Speech, it's ready to use
+  }, []);
 
   const fetchQuestions = async () => {
     try {
@@ -229,9 +241,49 @@ const QuizScreen = () => {
     // Implement more options functionality
   };
 
-  const handleListenPress = () => {
-    // Implement text-to-speech functionality
+  const generateSpeech = async (text: string) => {
+    try {
+      const mp3Response = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: "nova",
+        input: text,
+      });
+
+      const audioData = await mp3Response.arrayBuffer();
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
+
+      const tempFilePath = FileSystem.cacheDirectory + 'temp_audio.mp3';
+      await FileSystem.writeAsStringAsync(tempFilePath, base64Audio, { encoding: FileSystem.EncodingType.Base64 });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: tempFilePath },
+        { shouldPlay: true }
+      );
+
+      setSound(sound);
+
+      await sound.playAsync();
+    } catch (error) {
+      console.error('Error generating speech:', error);
+    }
   };
+
+  const handleListenPress = () => {
+    if (currentQuestion) {
+      if (sound) {
+        sound.stopAsync();
+      }
+      generateSpeech(currentQuestion.question_text);
+    }
+  };
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
 
   const handleSkipQuestion = () => {
     handleNextQuestion();

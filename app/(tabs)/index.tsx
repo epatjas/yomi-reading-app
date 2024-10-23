@@ -102,16 +102,23 @@ export default function HomeScreen() {
     const hasReadToday = lastReadDate && 
       lastReadDate.toDateString() === new Date().toDateString();
 
-    return dayMarkers.map((day, index) => (
-      <View key={day} style={styles.dayMarker}>
-        <Text style={[styles.dayText, index === currentDayIndex && styles.todayText]}>{day}</Text>
-        <View style={[styles.dayDot, index === currentDayIndex && styles.todayDot]}>
-          {index === currentDayIndex && hasReadToday && (
-            <Check size={12} color={colors.background02} />
-          )}
+    return dayMarkers.map((day, index) => {
+      const isActive = index <= currentDayIndex && (index < currentDayIndex || hasReadToday);
+      return (
+        <View key={day} style={styles.dayMarker}>
+          <Text style={[styles.dayText, index === currentDayIndex && styles.todayText]}>{day}</Text>
+          <View style={[
+            styles.dayDot, 
+            index === currentDayIndex && styles.todayDot,
+            isActive && styles.activeDot
+          ]}>
+            {isActive && (
+              <Check size={12} color={colors.background02} />
+            )}
+          </View>
         </View>
-      </View>
-    ));
+      );
+    });
   };
 
   return (
@@ -296,43 +303,8 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: colors.yellowDark,
     borderRadius: 4, // Rounded edges for the fill
-  },
-  careText: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.background,
-    textAlign: 'right',
-  },
-  futureContentPlaceholder: {
-    height: 200, // Placeholder height, adjust as needed
-  },
-  jumpBackText: {
-    fontFamily: fonts.regular,
-    fontSize: 24,
-    color: colors.text,
-    marginBottom: layout.spacing,
-  },
-  lastReadStory: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background02,
-    borderRadius: 12,
-    padding: layout.padding,
-    marginBottom: layout.spacing * 2,
-  },
-  storyInfo: {
-    flex: 1,
-  },
-  storyTitle: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  storyProgress: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.textSecondary,
+  
+
   },
   messageContainer: {
     alignItems: 'center',
@@ -377,12 +349,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: layout.padding,
     marginBottom: layout.spacing,
+  borderWidth: 1,
+  borderColor: colors.stroke,
+    
   },
   streakCounter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: layout.spacing,
+    
   },
   streakNumber: {
     fontFamily: fonts.bold,
@@ -441,5 +417,8 @@ const styles = StyleSheet.create({
   },
   flippedFlame: {
     transform: [{ scaleX: -1 }],
+  },
+  activeDot: {
+    backgroundColor: colors.yellowMedium,
   },
 });

@@ -269,8 +269,9 @@ export async function getUserStreak(userId: string): Promise<number> {
 
 export async function updateUserStreak(userId: string): Promise<number> {
   const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const userTimeZone = await getUserTimeZone(userId); // New function to get user's time zone
+  const userMidnight = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
+  userMidnight.setHours(0, 0, 0, 0);
 
   // Get the user's current streak and last read date
   const { data: userData, error: userError } = await supabase
@@ -285,27 +286,47 @@ export async function updateUserStreak(userId: string): Promise<number> {
   }
 
   let newStreak = 1; // Default to 1 if starting a new streak
+  let shouldUpdateStreak = true;
 
   if (userData?.last_read_date) {
     const lastReadDate = new Date(userData.last_read_date);
-    if (lastReadDate >= yesterday) {
-      // If last read was yesterday or today, increment the streak
+    const lastReadMidnight = new Date(lastReadDate.toLocaleString('en-US', { timeZone: userTimeZone }));
+    lastReadMidnight.setHours(0, 0, 0, 0);
+
+    if (lastReadMidnight.getTime() === userMidnight.getTime()) {
+      // User has already read today, don't update the streak
+      newStreak = userData.current_streak || 1;
+      shouldUpdateStreak = false;
+    } else if (lastReadMidnight.getTime() === userMidnight.getTime() - 86400000) {
+      // User read yesterday, increment the streak
       newStreak = (userData.current_streak || 0) + 1;
+    } else {
+      // User missed a day, reset streak to 1
+      newStreak = 1;
     }
   }
 
-  // Update the user's streak and last read date
-  const { error: updateError } = await supabase
-    .from('users')
-    .update({ current_streak: newStreak, last_read_date: now.toISOString() })
-    .eq('id', userId);
+  if (shouldUpdateStreak) {
+    // Update the user's streak and last read date
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ current_streak: newStreak, last_read_date: now.toISOString() })
+      .eq('id', userId);
 
-  if (updateError) {
-    console.error('Error updating user streak:', updateError);
-    return 0;
+    if (updateError) {
+      console.error('Error updating user streak:', updateError);
+      return 0;
+    }
   }
 
   return newStreak;
+}
+
+// New function to get user's time zone
+async function getUserTimeZone(userId: string): Promise<string> {
+  // Implement logic to fetch user's time zone from the database
+  // For now, we'll return a default time zone
+  return 'America/New_York';
 }
 
 export async function getLastReadDate(userId: string): Promise<Date | null> {
