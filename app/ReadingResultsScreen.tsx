@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Platform, ScrollView, Image } from 'react-native';
-import { ArrowLeft, Play, Pause, Clock, CheckSquare, ChevronDown, ChevronUp, CheckCircle, Timer, BookCheck } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { ArrowLeft, Timer, BookCheck, CheckCircle } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Audio, AVPlaybackStatus } from 'expo-av';
 import { colors, fonts, layout } from './styles/globalStyles';
 import YomiEnergyDisplay from '../components/YomiEnergyDisplay';
-import { LinearGradient, LinearGradientProps } from 'expo-linear-gradient';
 import { getYomiEnergy, getCurrentYomiEnergy } from '../services/yomiEnergyService';
-import { supabase } from '../services/readingSessionsHelpers';
+import AudioPlayer from '../components/AudioPlayer';
 
 // Add this utility function at the top of your file
 const formatTime = (milliseconds: number): string => {
@@ -15,157 +13,6 @@ const formatTime = (milliseconds: number): string => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-};
-
-// Define AudioPlayerProps interface
-interface AudioPlayerProps {
-  audioUri: string;
-}
-
-const AudioWaveform: React.FC<{ isPlaying: boolean }> = ({ isPlaying }) => {
-  const waveforms = useMemo(() => 
-    new Array(30).fill(0).map(() => new Animated.Value(0)),
-    []
-  );
-
-  useEffect(() => {
-    if (isPlaying) {
-      waveforms.forEach((waveform) => {
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(waveform, {
-              toValue: Math.random(),
-              duration: 500 + Math.random() * 500,
-              useNativeDriver: false,
-            }),
-            Animated.timing(waveform, {
-              toValue: 0,
-              duration: 500 + Math.random() * 500,
-              useNativeDriver: false,
-            }),
-          ])
-        ).start();
-      });
-    } else {
-      waveforms.forEach(waveform => {
-        waveform.setValue(0);
-      });
-    }
-  }, [isPlaying, waveforms]);
-
-  return (
-    <View style={styles.waveformContainer}>
-      {waveforms.map((waveform, index) => {
-        const opacity = Math.min(1, (index + 1) / 10, (30 - index) / 10);
-        return (
-          <Animated.View
-            key={index}
-            style={[
-              styles.waveformBar,
-              {
-                height: waveform.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['20%', '100%'],
-                }),
-                opacity,
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
-              start={{ x: 0, y: 1 }}
-              end={{ x: 0, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
-        );
-      })}
-    </View>
-  );
-};
-
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [duration, setDuration] = useState(0);
-  const [position, setPosition] = useState(0);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadSound = async () => {
-      try {
-        console.log('Loading sound from URI:', audioUri);
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: audioUri },
-          { shouldPlay: false },
-          onPlaybackStatusUpdate
-        );
-        if (isMounted) {
-          setSound(sound);
-          const status = await sound.getStatusAsync();
-          console.log('Initial sound status:', status);
-          if (status.isLoaded) {
-            console.log('Setting initial duration:', status.durationMillis);
-            setDuration(status.durationMillis || 0);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading sound:', error);
-      }
-    };
-    loadSound();
-    return () => {
-      isMounted = false;
-      if (sound) {
-        console.log('Unloading sound');
-        sound.unloadAsync();
-      }
-    };
-  }, [audioUri]);
-
-  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (status.isLoaded) {
-      setPosition(status.positionMillis);
-      if (status.durationMillis && status.durationMillis !== duration) {
-        console.log('Updating duration:', status.durationMillis);
-        setDuration(status.durationMillis);
-      }
-      setIsPlaying(status.isPlaying);
-    }
-  };
-
-  const togglePlayback = async () => {
-    if (sound) {
-      if (isPlaying) {
-        console.log('Pausing playback');
-        await sound.pauseAsync();
-      } else {
-        console.log('Starting playback');
-        await sound.playAsync();
-      }
-    }
-  };
-
-  console.log('Rendering AudioPlayer. Duration:', duration, 'Position:', position);
-
-  return (
-    <View style={styles.audioPlayerContainer}>
-      <TouchableOpacity onPress={togglePlayback} style={styles.playPauseButton}>
-        {isPlaying ? (
-          <Pause color={colors.text} size={20} />
-        ) : (
-          <Play color={colors.text} size={20} />
-        )}
-      </TouchableOpacity>
-      <View style={styles.waveformBackground}>
-        <Text style={styles.timeText}>{formatTime(position)}</Text>
-        <View style={styles.audioWaveContainer}>
-          <AudioWaveform isPlaying={isPlaying} />
-        </View>
-        <Text style={styles.timeText}>{formatTime(duration)}</Text>
-      </View>
-    </View>
-  );
 };
 
 const ReadingResultsScreen: React.FC = () => {
@@ -182,7 +29,7 @@ const ReadingResultsScreen: React.FC = () => {
   }>();
 
   const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy || '0'));
-  const [overallEnergy, setOverallEnergy] = useState(parseInt(energy || '0'));
+  const [overallEnergy, setOverallEnergy] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -205,21 +52,6 @@ const ReadingResultsScreen: React.FC = () => {
     fetchData();
   }, [readingSessionId, userId]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (userId) {
-        try {
-          const currentOverallEnergy = await getCurrentYomiEnergy(userId);
-          console.log('Current overall Yomi Energy:', currentOverallEnergy);
-          setOverallEnergy(currentOverallEnergy);
-        } catch (error) {
-          console.error('Error fetching energy data:', error);
-        }
-      }
-    };
-    fetchData();
-  }, [userId]);
-
   // Convert reading time from seconds to minutes and seconds
   const readingTimeSeconds = readingTime ? parseInt(readingTime) : 0;
   const readingTimeMinutes = Math.floor(readingTimeSeconds / 60);
@@ -240,7 +72,7 @@ const ReadingResultsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.mainContainer}>
-        <ScrollView style={styles.scrollContainer}>
+        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft color={colors.text} size={24} />
           </TouchableOpacity>
@@ -286,6 +118,8 @@ const ReadingResultsScreen: React.FC = () => {
           
           <Text style={styles.listenText}>Listen to your reading</Text>
           {audioUri && <AudioPlayer audioUri={audioUri} />}
+          
+          <View style={styles.bottomPadding} />
         </ScrollView>
         
         <View style={styles.bottomContainer}>
@@ -293,7 +127,7 @@ const ReadingResultsScreen: React.FC = () => {
             style={styles.button} 
             onPress={() => router.push({
               pathname: '/(tabs)/reading',
-              params: { userId: readingSessionId.split('-')[0] }
+              params: { userId: userId }
             })}
           >
             <Text style={styles.buttonText}>Read next story</Text>
@@ -318,7 +152,24 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+  },
+  scrollContentContainer: {
     padding: layout.padding,
+    paddingBottom: 120, // Add extra padding at the bottom
+  },
+  bottomPadding: {
+    height: 80, // Add extra space at the bottom of the scroll content
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.background,
+    padding: layout.padding,
+    paddingBottom: 34, // Extra padding for devices with home indicator
+    borderTopWidth: 1,
+    borderTopColor: colors.stroke,
   },
   backButton: {
     marginBottom: 20,
@@ -384,15 +235,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background02,
     borderRadius: 12,
-    padding: 4,
-    marginBottom: 4,
+    padding: 16,
+    marginTop: 16,
   },
   playPauseButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 0,
+    marginRight: 16,
+  },
+  audioText: {
+    fontSize: 16,
+    fontFamily: fonts.medium,
+    color: colors.text,
   },
   waveformBackground: {
     flex: 1,
@@ -434,12 +286,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
     marginTop: 12,
-  },
-  bottomContainer: {
-    padding: layout.padding,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.stroke,
   },
   button: {
     backgroundColor: colors.primary,

@@ -210,8 +210,8 @@ const QuizScreen = () => {
           readingSessionId: params.readingSessionId,
           readingTime: params.readingTime,
           readingPoints: params.readingPoints,
-          energy: params.energy, // This should now be the correct updated energy
-          audioUri: params.audioUri,
+          energy: params.energy,
+          audioUri: params.audioUri, // Pass along the audioUri
           correctAnswers: correctAnswers.toString(),
           totalQuestions: questions.length.toString(),
           userId: params.userId

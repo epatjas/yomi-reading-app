@@ -221,27 +221,23 @@ const ReadingScreen = () => {
   };
 
   // Function to stop recording
-  const stopRecording = async (): Promise<void> => {
+  const stopRecording = async (): Promise<string | null> => {
     if (!recording || isRecordingUnloaded) {
       console.log('Recording already stopped or unloaded');
-      return;
+      return null;
     }
 
     try {
       console.log('Stopping and unloading recording');
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-      setAudioUri(uri);
+      console.log('Recording stopped. URI:', uri);
       setRecording(null);
       setIsRecordingUnloaded(true);
+      return uri;
     } catch (error) {
-      if (error instanceof Error && error.message.includes('already been unloaded')) {
-        console.log('Recording was already unloaded');
-        setRecording(null);
-        setIsRecordingUnloaded(true);
-      } else {
-        console.error('Error stopping recording:', error);
-      }
+      console.error('Error stopping recording:', error);
+      return null;
     }
   };
 
@@ -348,29 +344,40 @@ const ReadingScreen = () => {
 
   const uploadAudioToSupabase = async (uri: string): Promise<string> => {
     try {
-      const fileContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      const fileExtension = uri.split('.').pop();
-      const fileName = `audio_${Date.now()}.${fileExtension}`;
-      const filePath = `${userId}/${fileName}`;
+      console.log('Starting audio upload to Supabase. URI:', uri);
+      const fileName = `audio_${Date.now()}.m4a`;
+      
+      // Read the file as a blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      console.log('File read as blob. Size:', blob.size);
+
+      if (blob.size === 0) {
+        throw new Error('Audio file is empty');
+      }
+
+      // Convert blob to ArrayBuffer
+      const arrayBuffer = await new Response(blob).arrayBuffer();
 
       const { data, error } = await supabase.storage
         .from('audio-recordings')
-        .upload(filePath, decode(fileContent), {
-          contentType: `audio/${fileExtension}`,
+        .upload(fileName, arrayBuffer, {
+          contentType: 'audio/m4a',
         });
 
-      if (error) {
-        console.error('Error uploading file to Supabase:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      const { data: publicUrlData } = supabase.storage
+      console.log('Audio file uploaded successfully. Data:', data);
+
+      const { data: urlData } = supabase.storage
         .from('audio-recordings')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
-      return publicUrlData.publicUrl;
+      console.log('Audio uploaded successfully. Public URL:', urlData.publicUrl);
+      return urlData.publicUrl;
     } catch (error) {
-      console.error('Error in uploadAudioToSupabase:', error);
+      console.error('Error uploading audio to Supabase:', error);
       throw error;
     }
   };
@@ -398,15 +405,22 @@ const ReadingScreen = () => {
     let audioUrl = '';
     if (recording && !isRecordingUnloaded) {
       try {
-        await stopRecording();
-        const uri = audioUri;
+        console.log('Stopping recording...');
+        const uri = await stopRecording();
+        console.log('Recording stopped. Audio URI:', uri);
         
         if (uri) {
+          console.log('Uploading audio to Supabase...');
           audioUrl = await uploadAudioToSupabase(uri);
+          console.log('Audio uploaded successfully. URL:', audioUrl);
+        } else {
+          console.log('No audio URI available for upload');
         }
       } catch (error) {
         console.error('Error stopping recording or uploading audio:', error);
       }
+    } else {
+      console.log('No active recording to stop');
     }
 
     // Calculate reading time
@@ -435,7 +449,9 @@ const ReadingScreen = () => {
         completed: true
       };
 
+      console.log('Saving reading session with data:', readingSessionData);
       const savedSession = await saveReadingSessionToDatabase(readingSessionData);
+      console.log('Reading session saved successfully:', savedSession);
 
       // Navigate to QuizScreen
       console.log('Navigating to QuizScreen with params:', { 
