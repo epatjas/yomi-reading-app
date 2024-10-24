@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Image, StyleSheet, Animated, Text } from 'react-native';
+import { View, Image, StyleSheet, Animated } from 'react-native';
 import { colors, fonts, layout } from '../app/styles/globalStyles';
 import Svg, { Path } from 'react-native-svg';
 import { Dimensions } from 'react-native';
@@ -93,7 +93,6 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
       <Animated.Text style={[styles.energyGainText, { opacity: fadeAnim }]}>
         +{ENERGY_GAIN_AMOUNT}
       </Animated.Text>
-      <Text style={styles.energyText}>{totalEnergy}%</Text>
     </View>
   );
 };
@@ -141,14 +140,6 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -20 }],
     color: colors.text,
     fontFamily: fonts.regular,
-    fontSize: 16,
-  },
-  energyText: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    color: colors.text,
-    fontFamily: fonts.medium,
     fontSize: 16,
   },
 });
