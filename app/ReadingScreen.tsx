@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { MoreVertical, ArrowLeft, Square, Mic, X } from 'lucide-react-native';
+import { MoreVertical, ArrowLeft, Square, Mic, X, Play, Pause } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { colors, fonts, layout } from './styles/globalStyles';
 import { getStories, Story } from '../services/storyService';
@@ -58,6 +58,10 @@ const ReadingScreen = () => {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isHyphenationEnabled, setIsHyphenationEnabled] = useState(false);
   const [isRecordingUnloaded, setIsRecordingUnloaded] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [accumulatedTime, setAccumulatedTime] = useState(0);
+  const pauseTimeRef = useRef<number | null>(null);
+  const [totalElapsedTime, setTotalElapsedTime] = useState(0);
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
@@ -228,16 +232,23 @@ const ReadingScreen = () => {
     }
 
     try {
-      console.log('Stopping and unloading recording');
+      console.log('Stopping and unloading recording...');
       await recording.stopAndUnloadAsync();
+      console.log('Recording stopped and unloaded');
+      
       const uri = recording.getURI();
-      console.log('Recording stopped. URI:', uri);
+      console.log('Recording URI:', uri);
+      
       setRecording(null);
       setIsRecordingUnloaded(true);
       return uri;
     } catch (error) {
       console.error('Error stopping recording:', error);
-      return null;
+      // Even if there's an error, try to get the URI
+      const uri = recording.getURI();
+      setRecording(null);
+      setIsRecordingUnloaded(true);
+      return uri;
     }
   };
 
@@ -309,6 +320,8 @@ const ReadingScreen = () => {
       setIsReading(true);
       setStartTime(new Date());
       setIsRecordingInterfaceVisible(true);
+      setTotalElapsedTime(0); // Reset total elapsed time
+      setIsPaused(false);
 
       Animated.timing(recordingAnimation, {
         toValue: 1,
@@ -319,18 +332,6 @@ const ReadingScreen = () => {
       const newRecording = await startRecording();
       if (newRecording) {
         setRecording(newRecording);
-        
-        const getAudioUri = async () => {
-          if (recording) {
-            const uri = recording.getURI();
-            if (uri) {
-              return uri;
-            }
-          }
-          return null;
-        };
-        
-        // Keep only the recording logic
       } else {
         throw new Error('Failed to start recording');
       }
@@ -396,6 +397,7 @@ const ReadingScreen = () => {
   const handleStopReading = async () => {
     setIsReading(false);
     setIsRecordingInterfaceVisible(false);
+    setIsPaused(false);
     Animated.timing(recordingAnimation, {
       toValue: 0,
       duration: 300,
@@ -423,10 +425,11 @@ const ReadingScreen = () => {
       console.log('No active recording to stop');
     }
 
-    // Calculate reading time
+    // Calculate reading time, accounting for pauses
     const endTime = new Date();
     const startTimeDate = startTime || new Date();
-    const durationInSeconds = Math.round((endTime.getTime() - startTimeDate.getTime()) / 1000);
+    const totalPausedTime = pauseTimeRef.current ? (Date.now() - pauseTimeRef.current) : 0;
+    const durationInSeconds = Math.round((endTime.getTime() - startTimeDate.getTime() - totalPausedTime) / 1000);
 
     // Update energy using addReadingEnergy
     const updatedEnergy = await addReadingEnergy(userId, durationInSeconds);
@@ -568,6 +571,39 @@ const ReadingScreen = () => {
     return text.split(' ').map(word => syllabify(word)).join(' ');
   };
 
+  // Add function to handle pausing/resuming recording
+  const handlePauseResume = async () => {
+    if (!recording) return;
+
+    try {
+      if (isPaused) {
+        // Resume recording
+        await recording.startAsync();
+        setIsPaused(false);
+      } else {
+        // Pause recording
+        await recording.pauseAsync();
+        setIsPaused(true);
+      }
+    } catch (error) {
+      console.error('Error pausing/resuming recording:', error);
+      Alert.alert('Error', 'Failed to pause/resume recording. Please try again.');
+    }
+  };
+
+  // Add this effect to update the total elapsed time
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isReading && !isPaused) {
+      interval = setInterval(() => {
+        setTotalElapsedTime(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isReading, isPaused]);
+
   // Render the component
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -602,58 +638,50 @@ const ReadingScreen = () => {
           </Text>
         </ScrollView>
 
-        {isRecordingInterfaceVisible && (
-          <Animated.View style={[
-            styles.recordingInterface,
-            {
-              transform: [
-                {
-                  translateY: recordingAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [100, 0],
-                  }),
-                },
-              ],
-              opacity: recordingAnimation,
-            },
-          ]}>
-            <TouchableOpacity onPress={cancelRecording} style={styles.cancelButton}>
-              <X size={20} color="white" />
-            </TouchableOpacity>
-            <View style={styles.waveformContainer}>
-              {waveformData.map(({ current }, index) => (
-                <LinearGradient
-                  key={index}
-                  colors={['#C652F0', '#5F79FF']} // Gradient colors from light to dark
-                  start={{ x: 0, y: 0 }} // Start from top
-                  end={{ x: 0, y: 1 }} // End at bottom
-                  style={[
-                    styles.waveformBar,
-                    { 
-                      height: `${current * 100}%`,
-                    }
-                  ]}
-                />
-              ))}
-            </View>
-            <View style={styles.durationContainer}>
-              <Text style={styles.durationText}>
-                {formatDuration(Math.round((new Date().getTime() - (startTime?.getTime() || 0)) / 1000))}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={handleStopReading} style={styles.stopButton}>
-              <Square size={20} color="black" />
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {!isRecordingInterfaceVisible && (
-          <TouchableOpacity
-            style={styles.micButton}
-            onPress={handleStartReading}
+        {isRecordingInterfaceVisible ? (
+          <Animated.View 
+            style={[
+              styles.recordingContainer,
+              {
+                transform: [
+                  {
+                    translateY: recordingAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [100, 0],
+                    }),
+                  },
+                ],
+                opacity: recordingAnimation,
+              },
+            ]}
           >
-            <Mic size={24} color={colors.text} />
-          </TouchableOpacity>
+            <View style={styles.recordingInterface}>
+              <TouchableOpacity onPress={cancelRecording} style={styles.cancelButton}>
+                <X size={20} color={colors.text} />
+              </TouchableOpacity>
+              <View style={styles.recordingControls}>
+                <Text style={styles.durationText}>
+                  {formatDuration(totalElapsedTime)}
+                </Text>
+                <TouchableOpacity onPress={handlePauseResume} style={styles.pauseButton}>
+                  {isPaused ? <Play size={20} color={colors.text} /> : <Pause size={20} color={colors.text} />}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleStopReading} style={styles.stopButton}>
+                  <Square size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Animated.View>
+        ) : (
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.readToYomiButton}
+              onPress={handleStartReading}
+            >
+              <Mic size={24} color={colors.text} />
+              <Text style={styles.readToYomiButtonText}>Read to Yomi</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -800,98 +828,77 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   buttonContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  startButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.text,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stopButtonContainer: {
-    width: 80,
-    height: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseCircle: {
     position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(209, 52, 56, 0.2)', // 20% opacity of #D13438
+    bottom: 20,
+    left: 16,
+    right: 16,
   },
-
+  readToYomiButton: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 30,
+  },
+  readToYomiButtonText: {
+    color: colors.text,
+    fontFamily: fonts.medium,
+    fontSize: 18,
+    marginLeft: 12,
+  },
+  recordingContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+  },
   recordingInterface: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.background02, // Solid dark background
+    backgroundColor: colors.background02,
     borderWidth: 1,
-    borderColor: colors.stroke, // Slightly lighter border for subtle definition
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5, // For Android shadow
+    borderColor: colors.stroke,
     padding: 12,
     borderRadius: 30,
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    height: 60, // Fixed height for the interface
+    height: 60,
   },
   cancelButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(50, 50, 50, 0.8)', // Slightly lighter than the background
+    backgroundColor: 'rgba(50, 50, 50, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  waveformContainer: {
-    flex: 1,
+  recordingControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 28, // Reduced height to match ReadingResultsScreen
-    marginHorizontal: 16,
-  },
-  waveformBar: {
-    width: 2, // Slightly thinner bars
-    marginHorizontal: 1, // Space between bars
-    borderRadius: 4,
-    height: '100%', // Full height of container
-  },
-  durationContainer: {
-    marginRight: 16,
   },
   durationText: {
     color: colors.text,
     fontFamily: fonts.medium,
     fontSize: 16,
+    marginRight: 12,
+  },
+  pauseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#262736',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   stopButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  micButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
     backgroundColor: colors.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -977,7 +984,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background02, // Or any color that fits your design
   },
   scrollViewContent: {
-    paddingBottom: 120, // Add extra padding at the bottom
+    paddingBottom: 100, // Increased padding to avoid content being hidden behind the button
   },
 });
 
