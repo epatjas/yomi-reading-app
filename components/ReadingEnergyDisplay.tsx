@@ -1,17 +1,18 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Image, StyleSheet, Animated } from 'react-native';
+import { View, Image, StyleSheet, Animated, Text } from 'react-native';
 import { colors, fonts, layout } from '../app/styles/globalStyles';
 import Svg, { Path } from 'react-native-svg';
 import { Dimensions } from 'react-native';
+import { ENERGY_GAIN_AMOUNT, MAX_ENERGY } from '../services/yomiEnergyService';
 
 const { width } = Dimensions.get('window');
-const SHAPE_SIZE = 48; // Adjust this value as needed to fit your design
+const SHAPE_SIZE = 48;
 
 interface ReadingEnergyDisplayProps {
   energy: number;
   sessionEnergy: number;
   recentGain: number;
-  energyProgress: number;
+  isPaused: boolean;
 }
 
 const getYomiImage = (energy: number) => {
@@ -25,14 +26,14 @@ const getYomiImage = (energy: number) => {
 const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({ 
   energy, 
   sessionEnergy, 
-  recentGain, 
-  energyProgress 
+  recentGain,
+  isPaused
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const fillAnim = useRef(new Animated.Value(energy)).current;
 
   useEffect(() => {
-    if (recentGain > 0) {
+    if (recentGain > 0 && !isPaused) {
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -47,15 +48,19 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
         }),
       ]).start();
     }
-  }, [recentGain]);
+  }, [recentGain, isPaused]);
 
   useEffect(() => {
-    Animated.timing(fillAnim, {
-      toValue: energy + sessionEnergy,
-      duration: 500,
-      useNativeDriver: false,
-    }).start();
-  }, [energy, sessionEnergy]);
+    if (!isPaused) {
+      Animated.timing(fillAnim, {
+        toValue: Math.min(energy + sessionEnergy, MAX_ENERGY),
+        duration: 500,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [energy, sessionEnergy, isPaused]);
+
+  const totalEnergy = Math.min(energy + sessionEnergy, MAX_ENERGY);
 
   return (
     <View style={styles.container}>
@@ -67,7 +72,7 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
           />
         </Svg>
         <Image 
-          source={getYomiImage(energy + sessionEnergy)}
+          source={getYomiImage(totalEnergy)}
           style={styles.yomiIcon}
         />
       </View>
@@ -77,7 +82,7 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
             styles.energyBarFill, 
             { 
               width: fillAnim.interpolate({
-                inputRange: [0, 100],
+                inputRange: [0, MAX_ENERGY],
                 outputRange: ['0%', '100%'],
                 extrapolate: 'clamp',
               }) 
@@ -86,8 +91,9 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
         />
       </View>
       <Animated.Text style={[styles.energyGainText, { opacity: fadeAnim }]}>
-        +{recentGain}
+        +{ENERGY_GAIN_AMOUNT}
       </Animated.Text>
+      <Text style={styles.energyText}>{totalEnergy}%</Text>
     </View>
   );
 };
@@ -135,6 +141,14 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -20 }],
     color: colors.text,
     fontFamily: fonts.regular,
+    fontSize: 16,
+  },
+  energyText: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    color: colors.text,
+    fontFamily: fonts.medium,
     fontSize: 16,
   },
 });

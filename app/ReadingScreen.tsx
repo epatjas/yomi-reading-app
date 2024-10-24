@@ -17,7 +17,13 @@ import {
   getUserTotalEnergy, 
   updateUserReadingPoints 
 } from '../services/userService';
-import { addReadingEnergy, ENERGY_GAIN_PER_10_SECONDS } from '../services/yomiEnergyService';
+import { 
+  getCurrentYomiEnergy, 
+  updateYomiEnergy,
+  ENERGY_GAIN_AMOUNT,
+  ENERGY_GAIN_INTERVAL,
+  MAX_ENERGY
+} from '../services/yomiEnergyService';
 import { createClient } from '@supabase/supabase-js';
 import { LinearGradient } from 'expo-linear-gradient';
 import { syllabify } from '../finnishHyphenation';
@@ -46,7 +52,6 @@ const ReadingScreen = () => {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [recentGain, setRecentGain] = useState(0);
   const [isReading, setIsReading] = useState(false);
-  const [energyProgress, setEnergyProgress] = useState(0);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isRecordingInterfaceVisible, setIsRecordingInterfaceVisible] = useState(false);
@@ -62,6 +67,8 @@ const ReadingScreen = () => {
   const [accumulatedTime, setAccumulatedTime] = useState(0);
   const pauseTimeRef = useRef<number | null>(null);
   const [totalElapsedTime, setTotalElapsedTime] = useState(0);
+  const [lastEnergyGainTime, setLastEnergyGainTime] = useState<number | null>(null);
+  const [localEnergy, setLocalEnergy] = useState(0);
 
   // Effect to check if userId is present, redirect to login if not
   useEffect(() => {
@@ -257,28 +264,6 @@ const ReadingScreen = () => {
     router.back();
   };
 
-  // Function to update energy while reading
-  const updateEnergyWhileReading = useCallback(() => {
-    if (isReading) {
-      setEnergyProgress(prev => {
-        const newProgress = prev + 1;
-        if (newProgress >= 10) {
-          setSessionEnergy(prevEnergy => prevEnergy + ENERGY_GAIN_PER_10_SECONDS);
-          setRecentGain(ENERGY_GAIN_PER_10_SECONDS);
-          setTimeout(() => setRecentGain(0), 2000);
-          return 0;
-        }
-        return newProgress;
-      });
-    }
-  }, [isReading]);
-
-  // Effect to update energy every second while reading
-  useEffect(() => {
-    const interval = setInterval(updateEnergyWhileReading, 1000);
-    return () => clearInterval(interval);
-  }, [updateEnergyWhileReading]);
-
   const recordAndGetUri = async (duration: number = 5000): Promise<string | null> => {
     let recording: Audio.Recording | null = null;
     let uri: string | null = null;
@@ -320,8 +305,9 @@ const ReadingScreen = () => {
       setIsReading(true);
       setStartTime(new Date());
       setIsRecordingInterfaceVisible(true);
-      setTotalElapsedTime(0); // Reset total elapsed time
+      setTotalElapsedTime(0);
       setIsPaused(false);
+      setLastEnergyGainTime(null); // Reset the last energy gain time
 
       Animated.timing(recordingAnimation, {
         toValue: 1,
@@ -398,6 +384,8 @@ const ReadingScreen = () => {
     setIsReading(false);
     setIsRecordingInterfaceVisible(false);
     setIsPaused(false);
+    setLastEnergyGainTime(null); // Reset the last energy gain time when stopping
+
     Animated.timing(recordingAnimation, {
       toValue: 0,
       duration: 300,
@@ -431,9 +419,6 @@ const ReadingScreen = () => {
     const totalPausedTime = pauseTimeRef.current ? (Date.now() - pauseTimeRef.current) : 0;
     const durationInSeconds = Math.round((endTime.getTime() - startTimeDate.getTime() - totalPausedTime) / 1000);
 
-    // Update energy using addReadingEnergy
-    const updatedEnergy = await addReadingEnergy(userId, durationInSeconds);
-
     // Update reading points
     await updateUserReadingPoints(userId, sessionEnergy);
 
@@ -445,8 +430,8 @@ const ReadingScreen = () => {
         start_time: startTimeDate.toISOString(),
         end_time: endTime.toISOString(),
         duration: durationInSeconds,
-        energy_gained: sessionEnergy,
-        reading_points: sessionEnergy,
+        energy_gained: localEnergy,
+        reading_points: localEnergy,
         audio_url: audioUrl,
         progress: 100,
         completed: true
@@ -461,8 +446,8 @@ const ReadingScreen = () => {
         readingSessionId: savedSession.id,
         storyId: currentStory?.id,
         readingTime: durationInSeconds.toString(),
-        readingPoints: sessionEnergy.toString(),
-        energy: updatedEnergy.toString(),
+        readingPoints: localEnergy.toString(),
+        energy: totalEnergy.toString(),
         audioUri: audioUrl,
         userId: userId
       });
@@ -472,12 +457,16 @@ const ReadingScreen = () => {
           readingSessionId: savedSession.id,
           storyId: currentStory?.id,
           readingTime: durationInSeconds.toString(),
-          readingPoints: sessionEnergy.toString(),
-          energy: updatedEnergy.toString(),
+          readingPoints: localEnergy.toString(),
+          energy: totalEnergy.toString(),
           audioUri: audioUrl,
           userId: userId
         }
       });
+
+      // Update the user's total energy in the database
+      await updateYomiEnergy(userId, totalEnergy + localEnergy);
+
     } catch (error) {
       console.error('Error saving reading session or updating energy:', error);
       Alert.alert('Error', 'Failed to save reading session or update energy. Your progress may not be recorded.');
@@ -547,21 +536,37 @@ const ReadingScreen = () => {
     };
   }, [isRecordingInterfaceVisible]);
 
-  // Instead, add a new useEffect to update energy every 10 seconds
+  // Replace the existing useEffect for energy updates with this version
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
-    if (isReading) {
-      intervalId = setInterval(() => {
-        const energyGain = ENERGY_GAIN_PER_10_SECONDS;
-        setSessionEnergy(prevEnergy => prevEnergy + energyGain);
-        setRecentGain(energyGain);
-        setTimeout(() => setRecentGain(0), 2000);
-      }, 10000); // 10 seconds
-    }
-    return () => {
-      if (intervalId) clearInterval(intervalId);
+
+    const updateEnergy = () => {
+      if (isReading && !isPaused) {
+        setLocalEnergy(prevEnergy => {
+          const newEnergy = Math.min(prevEnergy + ENERGY_GAIN_AMOUNT, MAX_ENERGY);
+          if (newEnergy > prevEnergy && newEnergy < MAX_ENERGY) {
+            setRecentGain(ENERGY_GAIN_AMOUNT);
+            setTimeout(() => setRecentGain(0), 2000);
+          } else if (newEnergy === MAX_ENERGY && prevEnergy !== MAX_ENERGY) {
+            // Show the +5 animation one last time when reaching max energy
+            setRecentGain(ENERGY_GAIN_AMOUNT);
+            setTimeout(() => setRecentGain(0), 2000);
+          }
+          return newEnergy;
+        });
+      }
     };
-  }, [isReading]);
+
+    if (isReading && !isPaused) {
+      intervalId = setInterval(updateEnergy, ENERGY_GAIN_INTERVAL * 1000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isReading, isPaused]);
 
   const toggleTextCase = () => {
     setTextCase(prevCase => prevCase === 'normal' ? 'uppercase' : 'normal');
@@ -571,7 +576,7 @@ const ReadingScreen = () => {
     return text.split(' ').map(word => syllabify(word)).join(' ');
   };
 
-  // Add function to handle pausing/resuming recording
+  // Update the handlePauseResume function
   const handlePauseResume = async () => {
     if (!recording) return;
 
@@ -580,6 +585,7 @@ const ReadingScreen = () => {
         // Resume recording
         await recording.startAsync();
         setIsPaused(false);
+        setLastEnergyGainTime(Date.now()); // Reset the last energy gain time when resuming
       } else {
         // Pause recording
         await recording.pauseAsync();
@@ -620,10 +626,10 @@ const ReadingScreen = () => {
 
         <View style={styles.energyDisplayContainer}>
           <ReadingEnergyDisplay 
-            energy={totalEnergy} 
-            sessionEnergy={sessionEnergy}
+            energy={totalEnergy}
+            sessionEnergy={localEnergy}
             recentGain={recentGain}
-            energyProgress={energyProgress}
+            isPaused={isPaused}
           />
         </View>
 
