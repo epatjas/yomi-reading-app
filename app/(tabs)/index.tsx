@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image, ScrollView, SafeAreaView, Button } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getUserReadingHistory, getUserTotalEnergy, getUserProfile, User as UserProfile, getUserStreak, getLastReadDate } from '../../services/userService';
@@ -87,6 +87,10 @@ export default function HomeScreen() {
       pathname: '/reading',
       params: { userId: userId as string }
     });
+  };
+
+  const handleTestRealtimePress = () => {
+    router.push('/test-realtime');
   };
 
   const getDayOfWeek = (date: Date): string => {
@@ -184,6 +188,11 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Add this new button for the test realtime page */}
+          <Pressable style={styles.testButton} onPress={handleTestRealtimePress}>
+            <Text style={styles.testButtonText}>Test Realtime API</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -420,5 +429,20 @@ const styles = StyleSheet.create({
   },
   activeDot: {
     backgroundColor: colors.yellowMedium,
+  },
+  // Add these new styles for the test button
+  testButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    marginTop: layout.spacing,
+    alignSelf: 'center',
+  },
+  testButtonText: {
+    fontFamily: fonts.medium,
+    fontSize: 16,
+    color: colors.buttonText,
+    textAlign: 'center',
   },
 });
