@@ -52,12 +52,38 @@ export async function getCurrentYomiEnergy(userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('current_energy')
+      .select('current_energy, last_energy_update')
       .eq('id', userId)
       .single();
 
     if (error) throw error;
-    return data?.current_energy || 0;
+
+    if (!data?.current_energy || !data?.last_energy_update) {
+      return 0;
+    }
+
+    // Calculate energy decay
+    const lastUpdate = new Date(data.last_energy_update);
+    const now = new Date();
+    const hoursPassed = Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60));
+    
+    // Decrease energy by 1 point per hour
+    let newEnergy = Math.max(MIN_ENERGY, data.current_energy - hoursPassed);
+
+    // Update the energy in the database if it has changed
+    if (newEnergy !== data.current_energy) {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          current_energy: newEnergy,
+          last_energy_update: now.toISOString()
+        })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+    }
+
+    return newEnergy;
   } catch (error) {
     console.error('Error fetching current Yomi Energy:', error);
     return 0;

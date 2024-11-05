@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Zap } from 'lucide-react-native';
 import { colors, fonts, layout } from '../app/styles/globalStyles';
@@ -23,19 +23,20 @@ const getYomiImage = (energy: number) => {
   return YomiVeryLowEnergy;
 };
 
-const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = ({ energy, onStatusPress }) => {
-  console.log(`YomiEnergyDisplay received energy: ${energy}`);
-  
-  // Ensure energy is a number and within bounds
-  const displayEnergy = Math.min(100, Math.max(0, Math.round(Number(energy) || 0)));
-  
-  console.log(`YomiEnergyDisplay displaying energy: ${displayEnergy}`);
+const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = memo(({ energy, onStatusPress }) => {
+  // Memoize the energy calculation
+  const displayEnergy = useMemo(() => {
+    return Math.min(100, Math.max(0, Math.round(Number(energy) || 0)));
+  }, [energy]);
+
+  // Memoize the Yomi image selection
+  const yomiImage = useMemo(() => getYomiImage(displayEnergy), [displayEnergy]);
 
   return (
     <TouchableOpacity style={styles.container} onPress={onStatusPress}>
       <View style={styles.topRow}>
         <Image 
-          source={getYomiImage(displayEnergy)} 
+          source={yomiImage} 
           style={styles.yomiIcon} 
         />
         <View style={styles.energyIconContainer}>
@@ -55,7 +56,10 @@ const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = ({ energy, onStatusP
       </View>
     </TouchableOpacity>
   );
-};
+});
+
+// Add display name for debugging purposes
+YomiEnergyDisplay.displayName = 'YomiEnergyDisplay';
 
 const styles = StyleSheet.create({
   container: {

@@ -1,101 +1,255 @@
-import React, { useState } from 'react';
-import { View, Button, Text, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Button, Text } from 'react-native';
+import { Audio, AVPlaybackStatus } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 
 const TestConnection = () => {
   const [status, setStatus] = useState('Not Connected');
   const [ws, setWs] = useState<WebSocket | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [yomiResponse, setYomiResponse] = useState<string>('');
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Uint8Array[]>([]);
+  const [audioBase64Chunks, setAudioBase64Chunks] = useState<string[]>([]);
 
-  const addLog = (message: string) => {
-    setLogs(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
+  useEffect(() => {
+    const getPermission = async () => {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        console.error('Audio permission not granted');
+      }
+    };
+    getPermission();
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync({
+        android: {
+          ...Audio.RecordingOptionsPresets.HIGH_QUALITY.android,
+          numberOfChannels: 1,
+        },
+        ios: {
+          ...Audio.RecordingOptionsPresets.HIGH_QUALITY.ios,
+          numberOfChannels: 1,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+        },
+        web: Audio.RecordingOptionsPresets.HIGH_QUALITY.web
+      });
+      
+      setRecording(recording);
+      setIsRecording(true);
+      setIsListening(true);
+      setYomiResponse('');
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
   };
 
-  const toggleConnection = () => {
+  const stopRecording = async () => {
+    if (!recording) return;
+
+    try {
+      const status = await recording.getStatusAsync();
+      if (status.durationMillis < 500) {
+        await new Promise(resolve => setTimeout(resolve, 500 - status.durationMillis));
+      }
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      
+      if (!uri) {
+        throw new Error('Failed to get recording URI');
+      }
+
+      setRecording(null);
+      setIsRecording(false);
+
+      // Process and send audio
+      const response = await fetch(uri);
+      const audioBlob = await response.blob();
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (ws && reader.result) {
+          const base64Audio = (reader.result as string).split(',')[1];
+          
+          const message = {
+            type: 'message',
+            content: {
+              type: 'audio',
+              audio: base64Audio
+            }
+          };
+          
+          ws.send(JSON.stringify(message));
+        }
+      };
+
+      reader.readAsDataURL(audioBlob);
+
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      setIsListening(false);
+    }
+  };
+
+  const playAudioFromBase64 = async (base64Audio: string) => {
+    try {
+      console.log('Starting audio playback process');
+      
+      const fileUri = `${FileSystem.cacheDirectory}temp_audio_${Date.now()}.mp3`;
+      console.log('Created temp file URI:', fileUri);
+      
+      await FileSystem.writeAsStringAsync(fileUri, base64Audio, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log('Wrote audio data to file');
+
+      if (sound) {
+        console.log('Unloading previous sound');
+        await sound.unloadAsync();
+      }
+
+      console.log('Loading new sound...');
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: fileUri },
+        { shouldPlay: true, volume: 1.0 },
+        (status) => {
+          console.log('Playback status update:', status);
+        }
+      );
+      
+      console.log('Sound created, attempting to play');
+      setSound(newSound);
+
+      newSound.setOnPlaybackStatusUpdate(async (status: AVPlaybackStatus) => {
+        console.log('Playback status:', status);
+        if ('isLoaded' in status && status.isLoaded && status.didJustFinish) {
+          console.log('Playback finished, cleaning up file');
+          await FileSystem.deleteAsync(fileUri).catch(() => {});
+        }
+      });
+
+    } catch (err: any) {
+      console.error('Failed to play audio:', err);
+      console.error('Error details:', err?.message || 'Unknown error');
+    }
+  };
+
+  // Clean up sound when component unmounts
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [sound]);
+
+  const connectToServer = () => {
+    const socket = new WebSocket('ws://192.168.1.115:8001');
+    
+    socket.onopen = () => {
+      setStatus('Connected');
+      socket.send(JSON.stringify({ type: 'connection.check' }));
+    };
+
+    socket.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Handle text responses
+        if (data.type === 'response.audio_transcript.done') {
+          console.log('Received transcript:', data.transcript);
+          setYomiResponse(data.transcript);
+          setIsListening(false);
+        }
+        
+        // Handle audio responses
+        if (data.type === 'response.audio.delta' && data.audio) {
+          console.log('Received audio chunk, length:', data.audio.length);
+          await playAudioFromBase64(data.audio);
+        }
+        
+      } catch (error) {
+        console.error('Error processing message:', error);
+      }
+    };
+
+    socket.onerror = () => {
+      setStatus('Error: Connection failed');
+      setIsListening(false);
+    };
+
+    socket.onclose = () => {
+      setStatus('Disconnected');
+      setIsListening(false);
+    };
+
+    setWs(socket);
+  };
+
+  const disconnectFromServer = () => {
     if (ws) {
-      // Disconnect if connected
-      console.log('Initiating disconnect...');
-      addLog('Initiating disconnect...');
       ws.close();
       setWs(null);
-    } else {
-      // Connect if disconnected
-      console.log('Attempting to connect...');
-      addLog('Attempting to connect...');
-      const socket = new WebSocket('ws://192.168.1.115:8001');
-      
-      socket.onopen = () => {
-        console.log('Connected to server');
-        addLog('Connected to server');
-        setStatus('Connected to server');
-        
-        // Automatically send test message when connected
-        const message = {
-          type: 'session.create',
-          options: {
-            mode: 'transcription'
-          }
-        };
-        
-        try {
-          socket.send(JSON.stringify(message));
-          console.log('Sent session.create message:', message);
-          addLog('Sent session.create message: ' + JSON.stringify(message));
-        } catch (error) {
-          console.error('Error sending message:', error);
-          addLog('Error sending message: ' + error);
-        }
-      };
-
-      socket.onmessage = (event) => {
-        console.log('Received from server:', event.data);
-        addLog(`Received from server: ${event.data}`);
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'status') {
-            setStatus(data.message);
-          }
-        } catch (e) {
-          console.error('Failed to parse server message:', e);
-          addLog('Failed to parse server message: ' + e);
-        }
-      };
-
-      socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        addLog('WebSocket error occurred');
-        setStatus('Error: Connection failed');
-      };
-
-      socket.onclose = (event) => {
-        console.log(`Disconnected from server (code: ${event.code}, reason: ${event.reason})`);
-        addLog(`Disconnected from server (code: ${event.code}, reason: ${event.reason})`);
-        setStatus('Disconnected');
-      };
-
-      setWs(socket);
     }
   };
 
   return (
     <View style={{ flex: 1, padding: 20 }}>
-      <Text style={{ fontSize: 18, marginBottom: 20 }}>Status: {status}</Text>
+      {/* Connection status - subtle indicator */}
+      <Text style={{ 
+        fontSize: 14, 
+        color: status === 'Connected' ? '#4CAF50' : '#F44336',
+        marginBottom: 20 
+      }}>
+        ●
+      </Text>
+
+      {/* Connect/Disconnect button */}
       <Button 
-        title={ws ? "Disconnect" : "Test Connection"} 
-        onPress={toggleConnection}
+        title={ws ? "Disconnect" : "Connect"} 
+        onPress={ws ? disconnectFromServer : connectToServer}
       />
-      <ScrollView 
-        style={{ 
-          flex: 1, 
-          marginTop: 20,
-          backgroundColor: '#f5f5f5',  // Light gray background to make it visible
-          padding: 10,
-          maxHeight: 300  // Set a maximum height
-        }}
-      >
-        {logs.map((log, index) => (
-          <Text key={index} style={{ marginBottom: 5, color: '#333' }}>{log}</Text>
-        ))}
-      </ScrollView>
+      
+      {/* Recording button with listening indicator */}
+      {ws && (
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title={isRecording ? "Stop" : "Start"}
+            onPress={isRecording ? stopRecording : startRecording}
+          />
+          {isListening && (
+            <Text style={{ 
+              textAlign: 'center', 
+              marginTop: 10,
+              color: '#666'
+            }}>
+              Listening...
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Yomi's response */}
+      {yomiResponse && (
+        <View style={{ 
+          marginTop: 20, 
+          padding: 15,
+          backgroundColor: '#f5f5f5',
+          borderRadius: 8
+        }}>
+          <Text style={{ color: '#333' }}>{yomiResponse}</Text>
+        </View>
+      )}
     </View>
   );
 };

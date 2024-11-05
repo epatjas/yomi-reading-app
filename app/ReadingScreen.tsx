@@ -233,29 +233,44 @@ const ReadingScreen = () => {
 
   // Function to stop recording
   const stopRecording = async (): Promise<string | null> => {
-    if (!recording || isRecordingUnloaded) {
-      console.log('Recording already stopped or unloaded');
+    if (!recording) {
+      console.log('No recording to stop');
       return null;
     }
 
     try {
-      console.log('Stopping and unloading recording...');
-      await recording.stopAndUnloadAsync();
-      console.log('Recording stopped and unloaded');
+      // Check if recording is already unloaded
+      if (!isRecordingUnloaded) {
+        console.log('Stopping and unloading recording...');
+        await recording.stopAndUnloadAsync();
+        console.log('Recording stopped and unloaded');
+      } else {
+        console.log('Recording was already unloaded');
+      }
       
+      // Get URI regardless of unload status
       const uri = recording.getURI();
       console.log('Recording URI:', uri);
       
+      // Update state
       setRecording(null);
       setIsRecordingUnloaded(true);
+      
       return uri;
     } catch (error) {
-      console.error('Error stopping recording:', error);
-      // Even if there's an error, try to get the URI
-      const uri = recording.getURI();
-      setRecording(null);
-      setIsRecordingUnloaded(true);
-      return uri;
+      console.error('Error in stopRecording:', error);
+      // Even if there's an error, try to get the URI if possible
+      try {
+        const uri = recording.getURI();
+        return uri;
+      } catch (uriError) {
+        console.error('Could not get recording URI:', uriError);
+        return null;
+      } finally {
+        // Always clean up the state
+        setRecording(null);
+        setIsRecordingUnloaded(true);
+      }
     }
   };
 
@@ -384,7 +399,7 @@ const ReadingScreen = () => {
     setIsReading(false);
     setIsRecordingInterfaceVisible(false);
     setIsPaused(false);
-    setLastEnergyGainTime(null); // Reset the last energy gain time when stopping
+    setLastEnergyGainTime(null);
 
     Animated.timing(recordingAnimation, {
       toValue: 0,
@@ -424,6 +439,39 @@ const ReadingScreen = () => {
 
     // Save the reading session to the database
     try {
+      // First get the current user data
+      const { data: userData, error: fetchError } = await supabase
+        .from('users')
+        .select('last_read_date, current_streak')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Calculate new streak
+      let newStreak = 1;
+      if (userData.last_read_date) {
+        const lastRead = new Date(userData.last_read_date);
+        const today = new Date();
+        const diffTime = Math.abs(today.getTime() - lastRead.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays <= 1) {
+          newStreak = (userData.current_streak || 0) + 1;
+        }
+      }
+
+      // Update last_read_date and streak
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          last_read_date: new Date().toISOString(),
+          current_streak: newStreak
+        })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+
       const readingSessionData: Omit<ReadingSession, 'id' | 'story_title'> = {
         user_id: userId,
         story_id: currentStory?.id || '',

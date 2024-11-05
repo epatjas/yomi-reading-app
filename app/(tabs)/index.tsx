@@ -53,26 +53,26 @@ export default function HomeScreen() {
         if (id) {
           const userId = Array.isArray(id) ? id[0] : id;
           
-          const userProfile = await getUserProfile(userId);
+          const [userProfile, energy, userStreak, lastRead] = await Promise.all([
+            getUserProfile(userId),
+            getCurrentYomiEnergy(userId),
+            getUserStreak(userId),
+            getLastReadDate(userId)
+          ]);
+
+          console.log('Debug streak values:', {
+            lastRead,
+            userStreak,
+            currentDay: new Date().toDateString()
+          });
+
           setUserAvatar(getAvatarUrl(userProfile));
-          
-          try {
-            const energy = await getCurrentYomiEnergy(userId);
-            setCurrentEnergy(energy);
-            setTotalEnergy(energy);
-            setYomiEnergy(energy);
-          } catch (error) {
-            console.error('Error fetching Yomi energy:', error);
-          }
-
-          // Fetch streak data
-          const userStreak = await getUserStreak(userId);
+          setCurrentEnergy(energy);
+          setTotalEnergy(energy);
+          setYomiEnergy(energy);
           setStreak(userStreak);
-
-          const lastRead = await getLastReadDate(userId);
           setLastReadDate(lastRead);
         } else {
-          // If no userId is found, redirect to the select profile screen
           router.replace('/select-profile');
         }
       } catch (error) {

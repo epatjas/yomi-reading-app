@@ -250,21 +250,65 @@ export async function getTotalReadingPoints(userId: string): Promise<number> {
   return totalPoints;
 }
 
-// Add these functions to your existing userService.ts file
+// Reading stre
 
 export async function getUserStreak(userId: string): Promise<number> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('current_streak')
-    .eq('id', userId)
-    .single();
+  try {
+    // First, get the last read date
+    const lastRead = await getLastReadDate(userId);
+    if (!lastRead) return 0;
 
-  if (error) {
-    console.error('Error fetching user streak:', error);
+    // Get current date and last read date in user's timezone
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastReadDate = new Date(lastRead);
+    const lastReadDay = new Date(lastReadDate.getFullYear(), lastReadDate.getMonth(), lastReadDate.getDate());
+
+    // Calculate the difference in days
+    const diffTime = Math.abs(today.getTime() - lastReadDay.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // If they read today, or read yesterday, maintain/increment streak
+    if (diffDays <= 1) {
+      // Get current streak from database
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('current_streak')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      let newStreak = userData.current_streak || 0;
+      
+      // If they read today and haven't been counted yet, increment streak
+      if (diffDays === 0 && lastReadDate.toDateString() === now.toDateString()) {
+        newStreak += 1;
+        
+        // Update the streak in the database
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ current_streak: newStreak })
+          .eq('id', userId);
+
+        if (updateError) throw updateError;
+      }
+
+      return newStreak;
+    } else {
+      // Streak broken - reset to 0
+      const { error } = await supabase
+        .from('users')
+        .update({ current_streak: 0 })
+        .eq('id', userId);
+
+      if (error) throw error;
+      return 0;
+    }
+  } catch (error) {
+    console.error('Error getting user streak:', error);
     return 0;
   }
-
-  return data?.current_streak || 0;
 }
 
 export async function updateUserStreak(userId: string): Promise<number> {

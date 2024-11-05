@@ -34,6 +34,12 @@ interface Question {
   story_id: string;
 }
 
+interface Story {
+  id: string;
+  title: string;
+  // ... other story properties if needed
+}
+
 const QuizScreen = () => {
   console.log('QuizScreen rendered');
 
@@ -63,6 +69,7 @@ const QuizScreen = () => {
   const [showMessage, setShowMessage] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [storyTitle, setStoryTitle] = useState<string>('');
 
   useEffect(() => {
     console.log('QuizScreen mounted with params:', params);
@@ -81,6 +88,10 @@ const QuizScreen = () => {
   useEffect(() => {
     // No need to initialize Speech, it's ready to use
   }, []);
+
+  useEffect(() => {
+    fetchStoryTitle();
+  }, [params.storyId]);
 
   const fetchQuestions = async () => {
     try {
@@ -140,6 +151,32 @@ const QuizScreen = () => {
       } else {
         setError('An unknown error occurred while fetching questions.');
       }
+    }
+  };
+
+  const fetchStoryTitle = async () => {
+    try {
+      if (!params.storyId) {
+        console.error('storyId is undefined');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('stories')
+        .select('title')
+        .eq('id', params.storyId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching story title:', error);
+        return;
+      }
+
+      if (data) {
+        setStoryTitle(data.title);
+      }
+    } catch (error) {
+      console.error('Error in fetchStoryTitle:', error);
     }
   };
 
@@ -243,10 +280,17 @@ const QuizScreen = () => {
 
   const generateSpeech = async (text: string) => {
     try {
+      // First, ensure any existing sound is unloaded
+      if (sound) {
+        await sound.unloadAsync();
+        setSound(null);
+      }
+
       const mp3Response = await openai.audio.speech.create({
         model: "tts-1",
-        voice: "nova",
-        input: text,
+        voice: "onyx",
+        speed: 1.0,
+        input: text
       });
 
       const audioData = await mp3Response.arrayBuffer();
@@ -255,14 +299,34 @@ const QuizScreen = () => {
       const tempFilePath = FileSystem.cacheDirectory + 'temp_audio.mp3';
       await FileSystem.writeAsStringAsync(tempFilePath, base64Audio, { encoding: FileSystem.EncodingType.Base64 });
 
-      const { sound } = await Audio.Sound.createAsync(
+      // Configure audio mode with basic settings
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      });
+
+      // Create sound object with enhanced playback settings
+      const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: tempFilePath },
-        { shouldPlay: true }
+        { 
+          shouldPlay: false,
+          volume: 1.0,
+          rate: 1.0,
+          progressUpdateIntervalMillis: 100,
+          positionMillis: 0,
+        }
       );
 
-      setSound(sound);
+      setSound(newSound);
 
-      await sound.playAsync();
+      // Ensure the device is set up for maximum volume
+      await Audio.setIsEnabledAsync(true);
+      
+      // Play with maximum volume
+      await newSound.playAsync();
+
     } catch (error) {
       console.error('Error generating speech:', error);
     }
@@ -360,7 +424,7 @@ const QuizScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header 
-        title="Veera ja taikasiemen" 
+        title={storyTitle || 'Quiz'}
         onBackPress={handleBackPress}
         onMorePress={handleMorePress}
       />
