@@ -179,7 +179,7 @@ export default function ReadingScreen() {
     try {
       console.log('Preparing to record...');
 
-      // Ensure any existing recording is stopped
+      // Ensure any existing recording is stopped and unloaded
       if (recording) {
         console.log('Stopping existing recording...');
         try {
@@ -190,9 +190,11 @@ export default function ReadingScreen() {
         setRecording(null);
       }
 
-      console.log('Creating new recording...');
+      // Prepare the recording
       const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        (status) => console.log('Recording status:', status),
+        1000
       );
 
       console.log('Recording created successfully');
@@ -264,9 +266,6 @@ export default function ReadingScreen() {
         }
       }
 
-      // Small delay for audio system to stabilize
-      await new Promise(resolve => setTimeout(resolve, 300));
-
       // Start recording
       const newRecording = await startRecording();
       if (!newRecording) {
@@ -278,12 +277,19 @@ export default function ReadingScreen() {
       setIsReading(true);
       setStartTime(new Date());
       setIsRecordingInterfaceVisible(true);
+      
+      // Add this animation code
+      Animated.timing(recordingAnimation, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+
       setTotalElapsedTime(0);
       setIsPaused(false);
       setLastEnergyGainTime(null);
 
       console.log('Recording started successfully');
-
     } catch (error) {
       console.error('Error in handleStartReading:', error);
       // Clean up any partial state
@@ -308,6 +314,8 @@ export default function ReadingScreen() {
           try {
             await recording.stopAndUnloadAsync();
             setRecording(null);
+            setIsRecordingInterfaceVisible(false);
+            recordingAnimation.setValue(0);
           } catch (error) {
             console.error('Cleanup error:', error);
           }
@@ -321,7 +329,7 @@ export default function ReadingScreen() {
         staysActiveInBackground: false,
       }).catch(console.error);
     };
-  }, [recording]);
+  }, [recording, recordingAnimation]);
 
   // Effect to handle recording when screen loses focus
   useFocusEffect(
@@ -958,8 +966,11 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 16,
     right: 16,
-    zIndex: 1000,
-    width: '100%',
+    backgroundColor: colors.background02,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: colors.stroke,
+    overflow: 'hidden',
   },
   modalOverlay: {
     flex: 1,
@@ -1064,11 +1075,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.background02,
-    borderWidth: 1,
-    borderColor: colors.stroke,
     padding: 12,
-    borderRadius: 30,
     height: 60,
   },
   recordingControls: {
