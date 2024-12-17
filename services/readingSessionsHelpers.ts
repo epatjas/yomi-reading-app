@@ -6,9 +6,10 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export interface ReadingSession {
-  id: string;
+  id?: string;
   user_id: string;
   story_id: string;
+  story_title?: string;
   start_time: string;
   end_time: string;
   duration: number;

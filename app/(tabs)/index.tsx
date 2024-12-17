@@ -4,7 +4,7 @@ import { colors, fonts, layout } from '../styles/globalStyles';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getUserReadingHistory, getUserTotalEnergy, getUserProfile, User as UserProfile, getUserStreak, getLastReadDate } from '../../services/userService';
 import { getYomiEnergy, getCurrentYomiEnergy } from '../../services/yomiEnergyService';
-import YomiEnergyDisplay from '../../components/YomiEnergyDisplay';
+import YomiEnergyDisplay from '../../components/shared/YomiEnergyDisplay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReadingSession } from '../../services/readingSessionsHelpers';
 import Svg, { Path } from 'react-native-svg';
@@ -73,7 +73,7 @@ export default function HomeScreen() {
           setStreak(userStreak);
           setLastReadDate(lastRead);
         } else {
-          router.replace('/select-profile');
+          router.replace('/screens/select-profile');
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -87,10 +87,6 @@ export default function HomeScreen() {
       pathname: '/reading',
       params: { userId: userId as string }
     });
-  };
-
-  const handleTestRealtimePress = () => {
-    router.push('/test-realtime');
   };
 
   const getDayOfWeek = (date: Date): string => {
@@ -188,11 +184,6 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
-
-          {/* Add this new button for the test realtime page */}
-          <Pressable style={styles.testButton} onPress={handleTestRealtimePress}>
-            <Text style={styles.testButtonText}>Test Realtime API</Text>
-          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -429,20 +420,5 @@ const styles = StyleSheet.create({
   },
   activeDot: {
     backgroundColor: colors.yellowMedium,
-  },
-  // Add these new styles for the test button
-  testButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 30,
-    marginTop: layout.spacing,
-    alignSelf: 'center',
-  },
-  testButtonText: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    color: colors.buttonText,
-    textAlign: 'center',
   },
 });

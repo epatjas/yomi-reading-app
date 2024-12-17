@@ -2,35 +2,39 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
-import { globalStyles, colors } from '../app/styles/globalStyles';
+import { globalStyles, colors } from './styles/globalStyles';
 import YomiLogo from '../assets/images/yomi-logo.svg';
 import BackgroundShape from '../assets/images/background-shape.svg';
 import { getUserProfiles } from '../services/userService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
-export default function LoadingScreen() {
+export default function Index() {
   const router = useRouter();
+  console.log('Splash screen component mounted');
 
   useEffect(() => {
+    console.log('Starting splash screen effect');
     const checkProfilesAndNavigate = async () => {
       try {
-        // Wait for at least 3 seconds to show the loading screen
+        console.log('Starting delay...');
         await new Promise(resolve => setTimeout(resolve, 5000));
+        console.log('Delay finished, checking profiles...');
 
         const profiles = await getUserProfiles();
+        console.log('Profiles fetched:', profiles);
         
         if (profiles.length === 0) {
-          // No profiles exist, navigate to create profile screen
-          router.replace('/create-profile');
+          console.log('No profiles found, navigating to create-profile');
+          router.replace('/screens/create-profile');
         } else {
-          // Profiles exist, navigate to select profile screen
-          router.replace('/select-profile');
+          console.log('Profiles found, navigating to select-profile');
+          router.replace('/screens/select-profile');
         }
       } catch (error) {
         console.error('Error checking profiles:', error);
-        // In case of error, navigate to create profile as a fallback
-        router.replace('/create-profile');
+        router.replace('/screens/create-profile');
       }
     };
 
@@ -38,19 +42,26 @@ export default function LoadingScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.yellowLight }]}>
       <View style={styles.contentContainer}>
         <View style={styles.backgroundContainer}>
-          <BackgroundShape width={width * 0.6} height={width * 0.6} fill={colors.yellowDark} />
+          <BackgroundShape 
+            width={width * 0.6} 
+            height={width * 0.6} 
+            fill={colors.yellowDark} 
+          />
         </View>
         <LottieView
           source={require('../assets/animations/Black Cat.json')}
-          style={styles.pawAnimation}
+          style={[styles.pawAnimation, { zIndex: 1 }]}
           autoPlay
           loop
         />
-        <View style={styles.logoWrapper}>
-          <YomiLogo width={width * 0.3} height={width * 0.3} />
+        <View style={[styles.logoWrapper, { zIndex: 2 }]}>
+          <YomiLogo 
+            width={width * 0.3} 
+            height={width * 0.3} 
+          />
         </View>
       </View>
     </View>
@@ -66,13 +77,16 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     position: 'relative',
+    width: width * 0.8,
+    height: width * 0.8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoContainer: {
+  backgroundContainer: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 0,
   },
   logoWrapper: {
     position: 'absolute',
@@ -80,13 +94,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pawAnimation: {
-    width: width * 0.8, // Increased size to surround the logo
-    height: width * 0.8, // Keeping it square
+    width: '100%',
+    height: '100%',
     position: 'absolute',
-  },
-  backgroundContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

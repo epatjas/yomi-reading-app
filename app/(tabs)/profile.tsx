@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, SafeAreaView, Pressable, FlatList, Scrol
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { BookCheck, History, ArrowLeft, LineChart, Edit2, ArrowLeftRight, Play, Pause, Timer } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import ChooseAvatar from '../../components/choose-avatar';
+import ChooseAvatar from '../../components/shared/choose-avatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserProfile, User, getTotalReadingTime, getTotalReadingPoints, getUserReadingHistory } from '../../services/userService'; // Make sure this import is correct
 import { updateUserProfile } from '../../services/userService';
@@ -195,7 +195,9 @@ export default function ProfileScreen() {
         )}
       </Pressable>
       <View style={styles.historyTextContainer}>
-        <Text style={styles.historyItemTitle}>{item.story_title || item.story_id}</Text>
+        <Text style={styles.historyItemTitle}>
+          {item.story_title || `Story ${item.story_id}`}
+        </Text>
         <Text style={styles.historyDate}>
           {new Date(item.start_time).toLocaleDateString()}
         </Text>
@@ -213,7 +215,7 @@ export default function ProfileScreen() {
               <ArrowLeft size={24} color={colors.text} />
             </Pressable>
             <Text style={styles.headerTitle}>Profile</Text>
-            <Pressable onPress={() => router.push('/select-profile')} style={styles.switchProfileButton}>
+            <Pressable onPress={() => router.push('/screens/select-profile')} style={styles.switchProfileButton}>
               <ArrowLeftRight size={24} color={colors.text} />
             </Pressable>
           </View>
