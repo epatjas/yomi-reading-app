@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, SafeAreaView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { Play, ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getStories, Story } from '../../services/storyService';
 import { getYomiEnergy } from '../../services/yomiEnergyService';
@@ -22,6 +22,7 @@ export default function LibraryScreen() {
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [userIdState, setUserIdState] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+  const isNavigating = useRef(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -44,8 +45,28 @@ export default function LibraryScreen() {
     fetchUserEnergy();
   }, [userIdState]);
 
-  const handleBookPress = (story: Story) => {
-    handleStorySelection(story.id);
+  const handleStoryPress = (story: Story) => {
+    try {
+      console.log('Starting navigation to ReadingScreen...');
+      console.log('Story:', story);
+      console.log('UserID:', userId);
+      
+      if (!story.id || !userId) {
+        throw new Error('Missing required navigation params');
+      }
+
+      router.push({
+        pathname: "/screens/ReadingScreen",
+        params: {
+          storyId: story.id,
+          userId: userId
+        }
+      } as any);
+
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Error', 'Failed to open story');
+    }
   };
 
   const filteredStories = selectedDifficulty
@@ -75,7 +96,7 @@ export default function LibraryScreen() {
   );
 
   const renderBookItem = ({ item }: { item: Story }) => (
-    <Pressable style={styles.bookItem} onPress={() => handleBookPress(item)}>
+    <Pressable style={styles.bookItem} onPress={() => handleStoryPress(item)}>
       <View style={styles.bookImageContainer}>
         {item.cover_image_url ? (
           <Image 
@@ -102,19 +123,6 @@ export default function LibraryScreen() {
       </View>
     </Pressable>
   );
-
-  const handleStorySelection = (storyId: string) => {
-    if (!userIdState) {
-      Alert.alert('Error', 'User ID is missing. Please log in again.');
-      router.replace('/login');
-      return;
-    }
-    
-    router.push({
-      pathname: '/ReadingScreen',
-      params: { storyId, userId: userIdState }
-    });
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
