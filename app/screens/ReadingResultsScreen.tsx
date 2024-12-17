@@ -139,7 +139,10 @@ const ReadingResultsScreen: React.FC = () => {
           <TouchableOpacity 
             onPress={() => router.push({
               pathname: '/screens/ReadingScreen',
-              params: { storyId: storyId, userId: userId }
+              params: {
+                storyId: storyId,
+                userId: userId
+              }
             })}
           >
             <Text style={styles.linkText}>Or read again</Text>
