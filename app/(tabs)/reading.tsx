@@ -17,55 +17,79 @@ const getYomiImage = (energy: number) => {
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { userId } = useLocalSearchParams();
+  const { userId: routeUserId } = useLocalSearchParams();
+  const [userId, setUserId] = useState<string | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
   const [totalEnergy, setTotalEnergy] = useState(0);
-  const [userIdState, setUserIdState] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
   const isNavigating = useRef(false);
+
+  useEffect(() => {
+    async function initializeUserId() {
+      try {
+        // Try to get userId from route params first
+        if (routeUserId) {
+          await AsyncStorage.setItem('userId', routeUserId as string);
+          setUserId(routeUserId as string);
+          return;
+        }
+
+        // If not in route params, try to get from AsyncStorage
+        const storedUserId = await AsyncStorage.getItem('userId');
+        if (storedUserId) {
+          setUserId(storedUserId);
+        }
+      } catch (error) {
+        console.error('Error initializing userId:', error);
+      }
+    }
+
+    initializeUserId();
+  }, [routeUserId]);
 
   useEffect(() => {
     async function fetchData() {
       const fetchedStories = await getStories();
       setStories(fetchedStories);
-
-      const storedUserId = await AsyncStorage.getItem('userId');
-      setUserIdState(storedUserId);
     }
     fetchData();
   }, []);
 
   useEffect(() => {
     async function fetchUserEnergy() {
-      if (userIdState) {
-        const energy = await getYomiEnergy(userIdState as string);
+      if (userId) {
+        const energy = await getYomiEnergy(userId as string);
         setTotalEnergy(energy);
       }
     }
     fetchUserEnergy();
-  }, [userIdState]);
+  }, [userId]);
 
-  const handleStoryPress = (story: Story) => {
+  const handleStoryPress = async (story: Story) => {
     try {
-      console.log('Starting navigation to ReadingScreen...');
-      console.log('Story:', story);
-      console.log('UserID:', userId);
+      // Get the latest userId from state or storage
+      const currentUserId = userId || await AsyncStorage.getItem('userId');
       
-      if (!story.id || !userId) {
-        throw new Error('Missing required navigation params');
+      if (!story.id) {
+        throw new Error('Story ID is missing');
+      }
+      
+      if (!currentUserId) {
+        throw new Error('User ID is missing');
       }
 
       router.push({
         pathname: "/screens/ReadingScreen",
         params: {
           storyId: story.id,
-          userId: userId
+          userId: currentUserId
         }
-      } as any);
+      });
 
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Error', 'Failed to open story');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('Navigation error:', errorMessage);
+      Alert.alert('Error', `Failed to open story: ${errorMessage}`);
     }
   };
 

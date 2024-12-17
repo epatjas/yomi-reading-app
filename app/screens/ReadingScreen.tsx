@@ -218,38 +218,49 @@ export default function ReadingScreen() {
     }
 
     try {
-      // Check if recording is already unloaded
-      if (!isRecordingUnloaded) {
-        console.log('Stopping and unloading recording...');
-        await recording.stopAndUnloadAsync();
-        console.log('Recording stopped and unloaded');
-      } else {
-        console.log('Recording was already unloaded');
+      let uri: string | null = null;
+
+      // First try to get the URI, as this might still work even if recording is unloaded
+      try {
+        uri = recording.getURI();
+        console.log('Got recording URI:', uri);
+      } catch (uriError) {
+        console.log('Could not get URI:', uriError);
       }
-      
-      // Get URI regardless of unload status
-      const uri = recording.getURI();
-      console.log('Recording URI:', uri);
-      
+
+      // Only attempt to stop and unload if not already unloaded
+      if (!isRecordingUnloaded) {
+        try {
+          console.log('Stopping and unloading recording...');
+          await recording.stopAndUnloadAsync();
+          console.log('Recording stopped and unloaded');
+        } catch (stopError) {
+          console.log('Error stopping recording (might already be unloaded):', stopError);
+        }
+      } else {
+        console.log('Recording was already unloaded, skipping stopAndUnloadAsync');
+      }
+
+      // If we couldn't get the URI earlier, try one more time
+      if (!uri) {
+        try {
+          uri = recording.getURI();
+        } catch (finalUriError) {
+          console.log('Final attempt to get URI failed:', finalUriError);
+        }
+      }
+
       // Update state
       setRecording(null);
       setIsRecordingUnloaded(true);
-      
+
       return uri;
     } catch (error) {
       console.error('Error in stopRecording:', error);
-      // Even if there's an error, try to get the URI if possible
-      try {
-        const uri = recording.getURI();
-        return uri;
-      } catch (uriError) {
-        console.error('Could not get recording URI:', uriError);
-        return null;
-      } finally {
-        // Always clean up the state
-        setRecording(null);
-        setIsRecordingUnloaded(true);
-      }
+      // Clean up state even if there was an error
+      setRecording(null);
+      setIsRecordingUnloaded(true);
+      return null;
     }
   };
 
@@ -309,15 +320,16 @@ export default function ReadingScreen() {
   useEffect(() => {
     return () => {
       console.log('ReadingScreen cleanup - unmounting');
-      if (recording) {
+      if (recording && !isRecordingUnloaded) {
         (async () => {
           try {
             await recording.stopAndUnloadAsync();
+          } catch (error) {
+            console.log('Cleanup unload error (recording might already be unloaded):', error);
+          } finally {
             setRecording(null);
             setIsRecordingInterfaceVisible(false);
             recordingAnimation.setValue(0);
-          } catch (error) {
-            console.error('Cleanup error:', error);
           }
         })();
       }
@@ -329,7 +341,7 @@ export default function ReadingScreen() {
         staysActiveInBackground: false,
       }).catch(console.error);
     };
-  }, [recording, recordingAnimation]);
+  }, [recording, recordingAnimation, isRecordingUnloaded]);
 
   // Effect to handle recording when screen loses focus
   useFocusEffect(
