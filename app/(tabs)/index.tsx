@@ -35,6 +35,11 @@ const getAvatarUrl = (profile: UserProfile | null): string | null => {
   return Array.isArray(profile.avatar_url) ? profile.avatar_url[0] : profile.avatar_url;
 };
 
+interface ReadingDay {
+  date: Date;
+  hasRead: boolean;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
@@ -44,6 +49,7 @@ export default function HomeScreen() {
   const [yomiEnergy, setYomiEnergy] = useState(0);
   const [streak, setStreak] = useState(0);
   const [lastReadDate, setLastReadDate] = useState<Date | null>(null);
+  const [weeklyReadings, setWeeklyReadings] = useState<ReadingDay[]>([]);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -55,25 +61,44 @@ export default function HomeScreen() {
           
           console.log('Fetching user data for ID:', userId);
           
-          const [userProfile, energy, userStreak, lastRead] = await Promise.all([
+          const today = new Date();
+          const currentDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
+          const startOfWeek = new Date();
+          startOfWeek.setDate(today.getDate() - currentDayIndex);
+          startOfWeek.setHours(0, 0, 0, 0);
+
+          const [userProfile, energy, userStreak, lastRead, readingSessions] = await Promise.all([
             getUserProfile(userId),
             getCurrentYomiEnergy(userId),
             getUserStreak(userId),
-            getLastReadDate(userId)
+            getLastReadDate(userId),
+            getUserReadingHistory(userId)
           ]);
 
-          console.log('Debug streak values:', {
-            lastRead: lastRead ? lastRead.toISOString() : null,
-            userStreak,
-            currentDay: new Date().toISOString()
-          });
+          const weekReadings: ReadingDay[] = [];
+          for (let i = 0; i < 7; i++) {
+            const currentDate = new Date(startOfWeek);
+            currentDate.setDate(startOfWeek.getDate() + i);
+            
+            const hasReadingOnDay = readingSessions.some(session => {
+              const sessionDate = new Date(session.start_time);
+              return sessionDate.toDateString() === currentDate.toDateString();
+            });
 
+            weekReadings.push({
+              date: currentDate,
+              hasRead: hasReadingOnDay
+            });
+          }
+
+          setWeeklyReadings(weekReadings);
           setUserAvatar(getAvatarUrl(userProfile));
           setCurrentEnergy(energy);
           setTotalEnergy(energy);
           setYomiEnergy(energy);
           setStreak(userStreak);
           setLastReadDate(lastRead);
+
         } else {
           router.replace('/screens/select-profile');
         }
@@ -101,24 +126,26 @@ export default function HomeScreen() {
     const today = new Date().getDay();
     const currentDayIndex = today === 0 ? 6 : today - 1;
 
-    const hasReadToday = lastReadDate && 
-      lastReadDate.toDateString() === new Date().toDateString();
-
     return dayMarkers.map((day, index) => {
-      const isActive = hasReadToday && index === currentDayIndex;
-
+      const isActive = weeklyReadings[index]?.hasRead;
+      
       return (
         <View key={day} style={styles.dayMarker}>
-          <Text style={[styles.dayText, index === currentDayIndex && styles.todayText]}>
+          <Text style={[
+            styles.dayText, 
+            index === currentDayIndex && styles.todayText
+          ]}>
             {day}
           </Text>
           <View style={[
-            styles.dayDot, 
-            index === currentDayIndex && styles.todayDot,
-            isActive && styles.activeDot
+            styles.dayDot,
+            index === currentDayIndex && styles.todayDot
           ]}>
             {isActive && (
-              <Check size={12} color={colors.background02} />
+              <Check 
+                size={12} 
+                color={index === currentDayIndex ? colors.background02 : '#20212D'} 
+              />
             )}
           </View>
         </View>
@@ -248,7 +275,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 16,
     color: colors.buttonText,
-    textAlign: 'center', // Center the text in the wider button
+    textAlign: 'center', 
   },
   energyCard: {
     backgroundColor: colors.yellowLight,
@@ -273,41 +300,41 @@ const styles = StyleSheet.create({
   },
   energyLevelContainer: {
     flexDirection: 'row',
-    alignItems: 'center', // Changed from 'flex-start' to 'center'
+    alignItems: 'center',
     marginBottom: layout.spacing,
   },
   energyLevel: {
     fontFamily: fonts.regular,
     fontSize: 56,
-    letterSpacing: -2, // Add a slight negative letter-spacing
+    letterSpacing: -2,
     color: colors.background,
     marginRight: 8,
-    lineHeight: 56, // Added to ensure proper vertical alignment
+    lineHeight: 56, 
   },
   energyLevelDetails: {
     flexDirection: 'column',
-    justifyContent: 'center', // Changed from 'flex-start' to 'center'
+    justifyContent: 'center', 
   },
   energyPercent: {
-    marginBottom: 4, // Add some space between the icon and the text
+    marginBottom: 4, 
   },
   energyText: {
     fontFamily: fonts.regular,
     fontSize: 16,
     color: colors.background,
-    lineHeight: 16, // Added to ensure proper vertical alignment
+    lineHeight: 16, 
   },
   energyBar: {
-    height: 12, // Increased thickness
+    height: 12, 
     backgroundColor: colors.background,
-    borderRadius: 6, // Rounded edges
+    borderRadius: 6, 
     marginBottom: layout.spacing,
-    padding: 2, // Small padding
+    padding: 2, 
   },
   energyFill: {
     height: '100%',
     backgroundColor: colors.yellowDark,
-    borderRadius: 4, // Rounded edges for the fill
+    borderRadius: 4, 
   
 
   },
@@ -334,7 +361,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     marginBottom: layout.spacing,
-    paddingTop: layout.padding, // Add some top padding
+    paddingTop: layout.padding, 
   },
   yomiContainer: {
     width: SHAPE_SIZE,
@@ -366,9 +393,10 @@ const styles = StyleSheet.create({
     
   },
   streakNumber: {
-    fontFamily: fonts.bold,
+    fontFamily: fonts.semiBold,
+    fontWeight: '600',
     fontSize: 48,
-    color: colors.yellowMedium,
+    color: '#FCEEAC',
     marginHorizontal: 4,
   },
   weekContainer: {
@@ -407,7 +435,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#4D4F69',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -422,8 +450,5 @@ const styles = StyleSheet.create({
   },
   flippedFlame: {
     transform: [{ scaleX: -1 }],
-  },
-  activeDot: {
-    backgroundColor: colors.yellowMedium,
   },
 });
