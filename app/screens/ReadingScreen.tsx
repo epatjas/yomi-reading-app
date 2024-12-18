@@ -92,6 +92,8 @@ export default function ReadingScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [recordingError, setRecordingError] = useState<Error | null>(null);
+  const isCleaningUp = useRef(false);
+  const statusMonitorInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Add this effect to fetch the user's current energy when the screen loads
   useEffect(() => {
@@ -198,30 +200,74 @@ export default function ReadingScreen() {
     }
   };
 
-  // Simplified startRecording function
+  // Update monitorRecordingStatus to use the ref and clean up properly
+  const monitorRecordingStatus = async (recording: Audio.Recording): Promise<void> => {
+    // Clear any existing interval
+    if (statusMonitorInterval.current) {
+      clearInterval(statusMonitorInterval.current);
+      statusMonitorInterval.current = null;
+    }
+
+    // Only monitor while recording is active
+    statusMonitorInterval.current = setInterval(async () => {
+      try {
+        const status = await recording.getStatusAsync();
+        // Only log if recording is active
+        if (status.isRecording) {
+          console.log('Recording status:', status);
+        } else {
+          // Clear interval if recording has stopped
+          if (statusMonitorInterval.current) {
+            clearInterval(statusMonitorInterval.current);
+            statusMonitorInterval.current = null;
+          }
+        }
+      } catch (error) {
+        console.error('Error getting recording status:', error);
+        // Clear interval on error
+        if (statusMonitorInterval.current) {
+          clearInterval(statusMonitorInterval.current);
+          statusMonitorInterval.current = null;
+        }
+      }
+    }, 1000);
+  };
+
+  // Update startRecording to use the new monitoring
   const startRecording = async (): Promise<Audio.Recording | null> => {
     try {
       console.log('Preparing to record...');
 
-      // Ensure any existing recording is stopped and unloaded
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
       if (recording) {
         console.log('Stopping existing recording...');
-        try {
-          await recording.stopAndUnloadAsync();
-        } catch (e) {
-          console.log('Error stopping existing recording:', e);
-        }
+        await recording.stopAndUnloadAsync();
         setRecording(null);
       }
 
-      // Prepare the recording
+      console.log('Creating new recording...');
       const { recording: newRecording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
-        (status) => console.log('Recording status:', status),
+        (status) => {
+          // Only log status updates while recording
+          if (status.isRecording) {
+            console.log('Recording status update:', status);
+          }
+        },
         1000
       );
 
-      console.log('Recording created successfully');
+      // Start monitoring
+      await monitorRecordingStatus(newRecording);
+
+      console.log('Recording started');
       return newRecording;
 
     } catch (err) {
@@ -312,6 +358,7 @@ export default function ReadingScreen() {
       setIsReading(true);
       setStartTime(new Date());
       setIsRecordingInterfaceVisible(true);
+      setIsRecordingUnloaded(false);
       
       // Add this animation code
       Animated.timing(recordingAnimation, {
@@ -340,32 +387,163 @@ export default function ReadingScreen() {
     }
   };
 
-  // Add cleanup effect
+  // Add cleanup to handleStopReading
+  const handleStopReading = async () => {
+    if (isCleaningUp.current) {
+      console.log('Cleanup already in progress, skipping...');
+      return;
+    }
+
+    let localRecording = recording; // Store reference to current recording
+    let uri: string | null = null;
+
+    try {
+      console.log('Stopping reading session...');
+      isCleaningUp.current = true;
+      
+      if (!localRecording) {
+        throw new Error('No active recording found');
+      }
+
+      try {
+        // Get status before stopping
+        const status = await localRecording.getStatusAsync();
+        console.log('Final recording status:', status);
+
+        // Get URI before stopping
+        try {
+          uri = localRecording.getURI();
+          console.log('Got recording URI:', uri);
+        } catch (uriError) {
+          console.error('Error getting URI:', uriError);
+        }
+
+        // Stop recording if it hasn't been unloaded
+        if (!isRecordingUnloaded) {
+          try {
+            console.log('Attempting to stop recording...');
+            await localRecording.stopAndUnloadAsync();
+            console.log('Recording stopped successfully');
+          } catch (stopError) {
+            console.error('Error stopping recording:', stopError);
+            // Continue even if stop fails - we might still have the URI
+          }
+        }
+
+        // Set recording state to unloaded
+        setIsRecordingUnloaded(true);
+        setRecording(null);
+        
+        // Wait for file system to catch up
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (recordingError) {
+        console.error('Recording operation error:', recordingError);
+        // Continue if we have a URI, otherwise throw
+        if (!uri) {
+          throw recordingError;
+        }
+      }
+
+      if (!uri) {
+        throw new Error('No recording URI available');
+      }
+
+      // Clean up UI state
+      setIsReading(false);
+      setIsRecordingInterfaceVisible(false);
+      setIsPaused(false);
+      setLastEnergyGainTime(null);
+
+      // Verify file exists and has content
+      try {
+        const response = await fetch(uri);
+        const fileInfo = await response.blob();
+        console.log('Recording file size:', fileInfo.size, 'bytes');
+        console.log('Recording file type:', fileInfo.type);
+        
+        if (fileInfo.size === 0) {
+          throw new Error('Recording file is empty');
+        }
+
+        console.log('Recording details:', {
+          uri,
+          size: fileInfo.size,
+          type: fileInfo.type
+        });
+
+        // Upload to Supabase
+        console.log('Starting Supabase upload process...');
+        let audioUrl = '';
+        try {
+          audioUrl = await uploadAudioToSupabase(uri);
+          console.log('Audio uploaded successfully. URL:', audioUrl);
+        } catch (uploadError) {
+          console.error('Upload error details:', uploadError);
+          throw new Error('Failed to upload recording');
+        }
+
+        // Save session data
+        if (!audioUrl) {
+          throw new Error('No audio URL received from upload');
+        }
+
+        console.log('Saving reading session with audio URL:', audioUrl);
+        await saveReadingSession(audioUrl);
+
+      } catch (fileError) {
+        console.error('Error verifying recording file:', fileError);
+        throw new Error('Failed to verify recording file');
+      }
+
+      // Stop animation
+      Animated.timing(recordingAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+
+    } catch (error) {
+      console.error('Error in handleStopReading:', error);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to complete reading session'
+      );
+    } finally {
+      // Clear status monitoring interval
+      if (statusMonitorInterval.current) {
+        clearInterval(statusMonitorInterval.current);
+        statusMonitorInterval.current = null;
+      }
+      isCleaningUp.current = false;
+      setRecording(null);
+      setIsRecordingUnloaded(true);
+    }
+  };
+
+  // Add cleanup to useEffect
   useEffect(() => {
     return () => {
       console.log('ReadingScreen cleanup - unmounting');
-      if (recording && !isRecordingUnloaded) {
-        (async () => {
-          try {
-            await recording.stopAndUnloadAsync();
-          } catch (error) {
-            console.log('Cleanup unload error (recording might already be unloaded):', error);
-          } finally {
-            setRecording(null);
-            setIsRecordingInterfaceVisible(false);
-            recordingAnimation.setValue(0);
-          }
-        })();
+      // Clear status monitoring interval
+      if (statusMonitorInterval.current) {
+        clearInterval(statusMonitorInterval.current);
+        statusMonitorInterval.current = null;
       }
       
-      // Reset audio mode
-      Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: false,
-        staysActiveInBackground: false,
-      }).catch(console.error);
+      if (recording && !isCleaningUp.current) {
+        try {
+          recording.stopAndUnloadAsync().catch(error => {
+            console.log('Cleanup unload error:', error);
+          });
+        } catch (error) {
+          console.log('Error during cleanup:', error);
+        }
+        setRecording(null);
+        setIsRecordingUnloaded(true);
+      }
     };
-  }, [recording, recordingAnimation, isRecordingUnloaded]);
+  }, [recording]);
 
   // Effect to handle recording when screen loses focus
   useFocusEffect(
@@ -467,85 +645,45 @@ export default function ReadingScreen() {
     try {
       console.log('Starting audio upload to Supabase. URI:', uri);
       const fileName = `audio_${Date.now()}.m4a`;
-      
-      // Read the file as a blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      console.log('File read as blob. Size:', blob.size);
 
-      if (blob.size === 0) {
-        throw new Error('Audio file is empty');
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        type: 'audio/m4a',
+        name: fileName,
+      } as any);
+
+      // Get Supabase URL for the file
+      const uploadUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/audio-recordings/${fileName}`;
+
+      // Upload using fetch directly
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+          'x-upsert': 'true'
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Upload response error:', errorData);
+        throw new Error(`Upload failed: ${response.status}`);
       }
 
-      // Convert blob to ArrayBuffer
-      const arrayBuffer = await new Response(blob).arrayBuffer();
-
-      const { data, error } = await supabase.storage
-        .from('audio-recordings')
-        .upload(fileName, arrayBuffer, {
-          contentType: 'audio/m4a',
-        });
-
-      if (error) throw error;
-
-      console.log('Audio file uploaded successfully. Data:', data);
-
+      // Get the public URL
       const { data: urlData } = supabase.storage
         .from('audio-recordings')
         .getPublicUrl(fileName);
 
-      console.log('Audio uploaded successfully. Public URL:', urlData.publicUrl);
+      console.log('Upload successful, URL:', urlData.publicUrl);
       return urlData.publicUrl;
+
     } catch (error) {
-      console.error('Error uploading audio to Supabase:', error);
+      console.error('Error in uploadAudioToSupabase:', error);
       throw error;
-    }
-  };
-
-
-  // Function to handle stopping the reading session
-  const handleStopReading = async () => {
-    try {
-      console.log('Stopping reading session...');
-      
-      setIsReading(false);
-      setIsRecordingInterfaceVisible(false);
-      setIsPaused(false);
-      setLastEnergyGainTime(null);
-
-      // Stop animation
-      Animated.timing(recordingAnimation, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-      
-      let audioUrl = '';
-      if (recording && !isRecordingUnloaded) {
-        try {
-          console.log('Stopping recording...');
-          const uri = await stopRecording();
-          console.log('Recording stopped. Audio URI:', uri);
-          
-          if (uri) {
-            console.log('Uploading audio to Supabase...');
-            audioUrl = await uploadAudioToSupabase(uri);
-            console.log('Audio uploaded successfully. URL:', audioUrl);
-          }
-        } catch (error) {
-          console.error('Error stopping recording:', error);
-          Alert.alert('Error', 'Failed to save recording');
-          return;
-        }
-      }
-
-      // Save session data
-      await saveReadingSession(audioUrl);
-
-    } catch (error) {
-      console.error('Error in handleStopReading:', error);
-      Alert.alert('Error', 'Failed to complete reading session');
     }
   };
 
@@ -731,7 +869,18 @@ export default function ReadingScreen() {
         completed: true
       };
 
-      const savedSession = await saveReadingSessionToDatabase(readingSessionData);
+      const savedSession = await saveReadingSessionToDatabase(
+        params.userId,         // user_id - get from params instead of userId
+        params.storyId,       // story_id - get from params instead of storyId
+        audioUrl,             // audio_url
+        new Date().toISOString(), // start_time
+        durationInSeconds,    // duration
+        new Date().toISOString(), // end_time
+        localEnergy,         // energy_gained
+        localEnergy,         // reading_points
+        100,                // progress
+        true                // completed
+      );
       console.log('Reading session saved successfully:', savedSession);
 
       // Add the energy to user's current_energy

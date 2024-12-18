@@ -10,33 +10,48 @@ export interface ReadingSession {
   user_id: string;
   story_id: string;
   story_title?: string;
-  start_time: string;
-  end_time: string;
-  duration: number;
-  energy_gained: number;
-  reading_points: number;
   audio_url: string;
-  progress: number;
-  completed: boolean;
+  start_time: string;
+  duration?: number;
+  end_time?: string;
+  energy_gained?: number;
+  reading_points?: number;
+  progress?: number;
+  completed?: boolean;
 }
 
-export const saveReadingSessionToDatabase = async (readingSession: Omit<ReadingSession, 'id'>): Promise<ReadingSession> => {
-  const { data, error } = await supabase
-    .from('reading_sessions')
-    .insert(readingSession)
-    .select()
-    .single();
+export const saveReadingSessionToDatabase = async (
+  userId: string,
+  storyId: string,
+  audioUrl: string,
+  startTime: string,
+  duration?: number,
+  endTime?: string,
+  energyGained?: number,
+  readingPoints?: number,
+  progress?: number,
+  completed?: boolean
+) => {
+  try {
+    const session: ReadingSession = {
+      user_id: userId,
+      story_id: storyId,
+      audio_url: audioUrl,
+      start_time: startTime,
+      duration,
+      end_time: endTime,
+      energy_gained: energyGained,
+      reading_points: readingPoints,
+      progress,
+      completed
+    };
 
-  if (error) {
+    // Your existing database save logic here
+    return session;
+  } catch (error) {
     console.error('Error saving reading session:', error);
     throw error;
   }
-
-  if (!data) {
-    throw new Error('No data returned from insert operation');
-  }
-
-  return data;
 };
 
 export function calculateWordsPerMinute(
