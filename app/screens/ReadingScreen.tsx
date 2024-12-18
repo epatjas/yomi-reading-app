@@ -1,6 +1,6 @@
 // Import necessary React and React Native components
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch, ActivityIndicator, Image } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { MoreVertical, ArrowLeft, Square, Mic, X, Play, Pause } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -8,7 +8,7 @@ import { colors, fonts, layout } from '../styles/globalStyles';
 import { getStories, Story } from '../../services/storyService';
 import { Audio } from 'expo-av';
 import { saveReadingSessionToDatabase, ReadingSession } from '../../services/readingSessionsHelpers';
-import ReadingEnergyDisplay from '../../components/shared/ReadingEnergyDisplay';
+import ReadingEnergyDisplay, { getYomiImage } from '../../components/shared/ReadingEnergyDisplay';
 import { updateUserReadingPoints, updateUserStreak } from '../../services/userService';
 import { 
   ENERGY_GAIN_AMOUNT, 
@@ -20,12 +20,29 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { syllabify } from '../../finnishHyphenation';
 import { Linking } from 'react-native';
+import Sparkle from '../../components/shared/SparkleEffect';
 
 // Global variable to store the current recording
 let globalRecording: Audio.Recording | null = null;
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
+
+// Add milestone message helper
+const getMilestoneMessage = (milestone: number) => {
+  switch (milestone) {
+    case 20:
+      return "Great start! Keep going!";
+    case 40:
+      return "You're doing great!";
+    case 60:
+      return "Amazing! Keep on reading!";
+    case 80:
+      return "Incredible reading streak!";
+    default:
+      return "Amazing! Keep on reading!";
+  }
+};
 
 // This section initializes the component and sets up necessary state variables for managing the reading interface.
 export default function ReadingScreen() {
@@ -97,6 +114,101 @@ export default function ReadingScreen() {
   const [isStopLoading, setIsStopLoading] = useState(false);
   const [readingState, setReadingState] = useState<'initial' | 'preparing' | 'recording'>('initial');
   const [showCelebration, setShowCelebration] = useState(false);
+  const [currentMilestone, setCurrentMilestone] = useState<20 | 40 | 60 | 80>();
+  const [lastCheckedEnergy, setLastCheckedEnergy] = useState(0);
+
+  // Add these refs for animations
+  const yomiScaleAnim = useRef(new Animated.Value(0.8)).current;
+  const yomiRotateAnim = useRef(new Animated.Value(0)).current;
+  const sparkleAnims = useRef(Array(12).fill(0).map(() => ({
+    position: new Animated.ValueXY({ x: 0, y: 0 }),
+    opacity: new Animated.Value(0),
+    scale: new Animated.Value(0),
+  }))).current;
+
+  // Add this function to handle animations
+  const startCelebrationAnimation = useCallback(() => {
+    // Reset animations
+    yomiScaleAnim.setValue(0.8);
+    yomiRotateAnim.setValue(0);
+    sparkleAnims.forEach(anim => {
+      anim.position.setValue({ x: 0, y: 0 });
+      anim.opacity.setValue(1);
+      anim.scale.setValue(0);
+    });
+
+    // Start animations
+    Animated.parallel([
+      // Yomi pop and wiggle
+      Animated.sequence([
+        Animated.spring(yomiScaleAnim, {
+          toValue: 1.1,
+          tension: 100,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+        Animated.spring(yomiScaleAnim, {
+          toValue: 1,
+          tension: 100,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Gentle rotation
+      Animated.sequence([
+        Animated.timing(yomiRotateAnim, {
+          toValue: 0.05,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(yomiRotateAnim, {
+          toValue: -0.05,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(yomiRotateAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Sparkle explosion
+      ...sparkleAnims.map((anim, i) => {
+        const angle = (i / sparkleAnims.length) * Math.PI * 2;
+        const distance = 150 + Math.random() * 50;
+        return Animated.parallel([
+          Animated.timing(anim.position, {
+            toValue: {
+              x: Math.cos(angle) * distance,
+              y: Math.sin(angle) * distance,
+            },
+            duration: 1000 + Math.random() * 500,
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.spring(anim.scale, {
+              toValue: 0.6 + Math.random() * 0.4,
+              tension: 100,
+              friction: 5,
+              useNativeDriver: true,
+            }),
+            Animated.timing(anim.opacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]);
+      }),
+    ]).start();
+  }, []);
+
+  // Trigger animation when celebration shows
+  useEffect(() => {
+    if (showCelebration) {
+      startCelebrationAnimation();
+    }
+  }, [showCelebration, startCelebrationAnimation]);
 
   // Add this effect to fetch the user's current energy when the screen loads
   useEffect(() => {
@@ -690,7 +802,7 @@ export default function ReadingScreen() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Replace the existing useEffect for energy updates with this version
+  // Keep the energy gain effect in the existing useEffect
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
@@ -699,10 +811,6 @@ export default function ReadingScreen() {
         setLocalEnergy(prevEnergy => {
           const newEnergy = Math.min(prevEnergy + ENERGY_GAIN_AMOUNT, MAX_ENERGY);
           if (newEnergy > prevEnergy && newEnergy < MAX_ENERGY) {
-            setRecentGain(ENERGY_GAIN_AMOUNT);
-            setTimeout(() => setRecentGain(0), 2000);
-          } else if (newEnergy === MAX_ENERGY && prevEnergy !== MAX_ENERGY) {
-            // Show the +5 animation one last time when reaching max energy
             setRecentGain(ENERGY_GAIN_AMOUNT);
             setTimeout(() => setRecentGain(0), 2000);
           }
@@ -721,6 +829,39 @@ export default function ReadingScreen() {
       }
     };
   }, [isReading, isPaused]);
+
+  // Separate effect for milestone celebrations
+  useEffect(() => {
+    const combinedEnergy = totalEnergy + localEnergy;
+    
+    // Skip check if this is the initial load
+    if (lastCheckedEnergy === 0) {
+      setLastCheckedEnergy(combinedEnergy);
+      return;
+    }
+
+    const currentPercentage = Math.floor((combinedEnergy / MAX_ENERGY) * 100);
+    const previousPercentage = Math.floor((lastCheckedEnergy / MAX_ENERGY) * 100);
+
+    // Check if we've crossed any milestone
+    for (const milestone of MILESTONES) {
+      if (previousPercentage < milestone && currentPercentage >= milestone) {
+        setShowCelebration(true);
+        setCurrentMilestone(milestone);
+        
+        // Hide celebration after delay
+        setTimeout(() => {
+          setShowCelebration(false);
+          setCurrentMilestone(undefined);
+        }, 3000);
+        
+        break;
+      }
+    }
+
+    // Update last checked energy
+    setLastCheckedEnergy(combinedEnergy);
+  }, [totalEnergy, localEnergy]); // Dependencies remain the same
 
   const toggleTextCase = () => {
     setTextCase(prevCase => prevCase === 'normal' ? 'uppercase' : 'normal');
@@ -884,21 +1025,11 @@ export default function ReadingScreen() {
     }
   };
 
-  // Add milestone check
-  useEffect(() => {
-    const milestones = [25, 50, 75, 100];
-    const currentPercentage = (totalEnergy / MAX_ENERGY) * 100;
-    
-    const hitMilestone = milestones.some(milestone => {
-      const previousEnergy = ((totalEnergy - recentGain) / MAX_ENERGY) * 100;
-      return previousEnergy < milestone && currentPercentage >= milestone;
-    });
+  // Define milestone type as a union of possible values
+  type Milestone = 20 | 40 | 60 | 80;
 
-    if (hitMilestone) {
-      setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 3000);
-    }
-  }, [totalEnergy, recentGain]);
+  // Create an array of milestone values
+  const MILESTONES = [20, 40, 60, 80] as const;
 
   // Render the Reading Screen UI
   if (isLoading) {
@@ -931,7 +1062,6 @@ export default function ReadingScreen() {
             sessionEnergy={localEnergy}
             recentGain={recentGain}
             isPaused={isPaused}
-            showCelebration={showCelebration}
             readingState={readingState}
           />
         </View>
@@ -1006,6 +1136,55 @@ export default function ReadingScreen() {
             </Animated.View>
           )}
         </View>
+
+        {showCelebration && (
+          <View style={styles.celebrationOverlay}>
+            <Text style={styles.celebrationText}>
+              {getMilestoneMessage(currentMilestone || 0)}
+            </Text>
+            
+            <Animated.View 
+              style={[
+                styles.celebrationYomiContainer,
+                {
+                  transform: [
+                    { scale: yomiScaleAnim },
+                    { rotate: yomiRotateAnim.interpolate({
+                      inputRange: [-1, 1],
+                      outputRange: ['-15deg', '15deg']
+                    }) },
+                  ]
+                }
+              ]}
+            >
+              <View style={styles.yomiCircleBackground} />
+              <Image 
+                source={getYomiImage(currentMilestone || 0)}
+                style={styles.celebrationYomi}
+              />
+            </Animated.View>
+
+            {sparkleAnims.map((anim, i) => (
+              <Animated.View
+                key={i}
+                style={[
+                  styles.sparkle,
+                  {
+                    transform: [
+                      { translateX: anim.position.x },
+                      { translateY: anim.position.y },
+                      { scale: anim.scale },
+                      { rotate: `${Math.random() * 360}deg` },
+                    ],
+                    opacity: anim.opacity,
+                  }
+                ]}
+              >
+                <View style={styles.sparkleSquare} />
+              </Animated.View>
+            ))}
+          </View>
+        )}
       </View>
 
       <Modal
@@ -1096,7 +1275,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: layout.padding,
+    padding: 20,
   },
   header: {
     flexDirection: 'row',
@@ -1105,7 +1284,9 @@ const styles = StyleSheet.create({
     marginBottom: layout.spacing,
   },
   headerButton: {
-    padding: 8,
+    paddingBottom: 8,
+    paddingLeft: 0,
+    paddingRight: 0,
   },
   title: {
     fontFamily: fonts.medium,
@@ -1179,7 +1360,7 @@ const styles = StyleSheet.create({
   },
   recordingContainer: {
     position: 'absolute',
-    bottom: 8,
+    bottom: 0,
     left: 0,
     right: 0,
     borderRadius: 30,
@@ -1290,7 +1471,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 0,
     left: 16,
     right: 16,
     zIndex: 1000,
@@ -1301,6 +1482,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 12,
     height: 60,
+    backgroundColor: colors.background,
+    borderRadius: 30,
   },
   recordingControls: {
     flexDirection: 'row',
@@ -1347,5 +1530,55 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.text,
     textAlign: 'center',
+  },
+  celebrationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    zIndex: 9999,
+  },
+  celebrationText: {
+    color: colors.yellowDark,
+    fontFamily: fonts.bold,
+    fontSize: 24, // Smaller text size
+    textAlign: 'center',
+    marginBottom: 32, // More space between text and Yomi
+    zIndex: 10000,
+  },
+  celebrationYomiContainer: {
+    position: 'relative',
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yomiCircleBackground: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFF4D3', // Yellow background circle
+  },
+  celebrationYomi: {
+    width: 100,
+    height: 100,
+    resizeMode: 'contain',
+    zIndex: 1,
+  },
+  sparkle: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+  },
+  sparkleSquare: {
+    width: 8,
+    height: 8,
+    backgroundColor: colors.yellowDark,
+    borderRadius: 1,
   },
 });

@@ -16,11 +16,10 @@ interface ReadingEnergyDisplayProps {
   sessionEnergy: number;
   recentGain: number;
   isPaused: boolean;
-  showCelebration?: boolean;
   readingState: 'initial' | 'preparing' | 'recording';
 }
 
-const getYomiImage = (energy: number) => {
+export const getYomiImage = (energy: number) => {
   if (energy >= 80) return require('../../assets/images/yomi-max-energy.png');
   if (energy >= 60) return require('../../assets/images/yomi-high-energy.png');
   if (energy >= 40) return require('../../assets/images/yomi-medium-energy.png');
@@ -28,12 +27,26 @@ const getYomiImage = (energy: number) => {
   return require('../../assets/images/yomi-very-low-energy.png');
 };
 
+const getMilestoneMessage = (milestone: number) => {
+  switch (milestone) {
+    case 20:
+      return "Great start! Keep going!";
+    case 40:
+      return "You're doing great!";
+    case 60:
+      return "Amazing! Keep on reading!";
+    case 80:
+      return "Incredible reading streak!";
+    default:
+      return "Amazing! Keep on reading!";
+  }
+};
+
 const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({ 
   energy, 
   sessionEnergy, 
   recentGain,
   isPaused,
-  showCelebration = false,
   readingState,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -322,12 +335,6 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
           </View>
         </View>
       )}
-
-      {showCelebration && (
-        <View style={styles.celebrationOverlay}>
-          <Text style={styles.celebrationText}>Amazing! Keep on reading!</Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -400,12 +407,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 999,
   },
   celebrationText: {
     color: colors.text,
     fontFamily: fonts.bold,
     fontSize: 24,
     textAlign: 'center',
+    marginBottom: 20,
+    zIndex: 1000,
   },
   initialStateContainer: {
     flex: 1,
