@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, SafeAreaView, Pressable, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { BookCheck, History, ArrowLeft, LineChart, Edit2, ArrowLeftRight, Play, Pause, Timer } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { getUserProfile, User, getTotalReadingTime, getTotalReadingPoints, getUs
 import { updateUserProfile } from '../../services/userService';
 import { ReadingSession } from '../../services/readingSessionsHelpers';
 import { Audio, AVPlaybackStatus } from 'expo-av';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Add this interface at the top of your file
 interface UserProfile {
@@ -35,6 +36,16 @@ const avatars = [
   { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar9.png' }
 ];
 
+// Add helper function to format duration
+const formatDuration = (durationSeconds: number | undefined): string => {
+  if (!durationSeconds) return '0:00';
+  
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
@@ -49,6 +60,8 @@ export default function ProfileScreen() {
   const [playingAudioUrl, setPlayingAudioUrl] = useState<string | null>(null);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [pausedPosition, setPausedPosition] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -101,6 +114,7 @@ export default function ProfileScreen() {
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
           shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
         });
       } catch (error) {
         console.error('Error setting up audio mode:', error);
@@ -146,39 +160,97 @@ export default function ProfileScreen() {
 
   const playAudio = async (audioUrl: string) => {
     console.log('Attempting to play audio:', audioUrl);
+    setIsAudioLoading(true);
+    setAudioError(null);
+
     try {
-      if (playingAudioUrl === audioUrl && sound) {
-        console.log('Pausing current audio');
-        await sound.pauseAsync();
-        setPlayingAudioUrl(null);
-      } else {
-        if (sound) {
-          console.log('Stopping and unloading previous audio');
-          await sound.stopAsync();
-          await sound.unloadAsync();
+      // If the same audio is playing, handle pause/resume
+      if (playingAudioUrl === audioUrl && soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          if (status.isPlaying) {
+            // Pause
+            console.log('Pausing audio...');
+            await soundRef.current.pauseAsync();
+            setPausedPosition(status.positionMillis);
+            setPlayingAudioUrl(null);
+          } else {
+            // Resume
+            console.log('Resuming audio from position:', status.positionMillis);
+            await soundRef.current.playFromPositionAsync(status.positionMillis);
+            setPlayingAudioUrl(audioUrl);
+          }
+          setIsAudioLoading(false);
+          return;
         }
-
-        console.log('Loading new audio');
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: audioUrl },
-          { shouldPlay: true, volume: 1.0 },
-          (status) => console.log('Playback status:', status)
-        );
-
-        console.log('New audio loaded, playing');
-        setSound(newSound);
-        setPlayingAudioUrl(audioUrl);
-
-        await newSound.playAsync();
       }
+
+      // Stop and unload any existing playback
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+        setPlayingAudioUrl(null);
+        setPausedPosition(null);
+      }
+
+      console.log('Loading new audio...');
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true },
+        onPlaybackStatusUpdate
+      );
+
+      soundRef.current = newSound;
+      setSound(newSound);
+      setPlayingAudioUrl(audioUrl);
+      setPausedPosition(null);
+
     } catch (error) {
       console.error('Error in playAudio function:', error);
-      if (error instanceof Error) {
-        setAudioError(error.message);
-      } else {
-        setAudioError('An unknown error occurred');
-      }
+      setAudioError(error instanceof Error ? error.message : 'An unknown error occurred');
       setPlayingAudioUrl(null);
+      setPausedPosition(null);
+    } finally {
+      setIsAudioLoading(false);
+    }
+  };
+
+  // Update onPlaybackStatusUpdate to store duration when first loaded
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) {
+      if (status.error) {
+        console.error(`Audio playback error: ${status.error}`);
+        setAudioError(status.error);
+      }
+      return;
+    }
+
+    // Store duration in state or update reading session if needed
+    if (status.durationMillis && !status.didJustFinish) {
+      // You might want to update the session in the database with the duration
+      console.log('Audio duration:', status.durationMillis);
+    }
+
+    // Only log status if playing or paused (reduces console spam)
+    if (status.isPlaying || pausedPosition !== null) {
+      console.log('Playback status:', {
+        isPlaying: status.isPlaying,
+        position: status.positionMillis,
+        duration: status.durationMillis,
+        pausedPosition,
+      });
+    }
+
+    if (status.didJustFinish) {
+      console.log('Audio finished playing');
+      setPlayingAudioUrl(null);
+      setPausedPosition(null);
+      // Clean up the sound
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
     }
   };
 
@@ -187,22 +259,67 @@ export default function ProfileScreen() {
       <Pressable 
         style={styles.historyIconContainer}
         onPress={() => playAudio(item.audio_url)}
+        disabled={isAudioLoading}
       >
-        {playingAudioUrl === item.audio_url ? (
+        {isAudioLoading && playingAudioUrl === item.audio_url ? (
+          <ActivityIndicator color={colors.background} size="small" />
+        ) : playingAudioUrl === item.audio_url ? (
           <Pause size={20} color={colors.background} />
         ) : (
           <Play size={20} color={colors.background} />
         )}
       </Pressable>
       <View style={styles.historyTextContainer}>
-        <Text style={styles.historyItemTitle}>
+        <Text 
+          style={styles.historyItemTitle}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
           {item.story_title || `Story ${item.story_id}`}
         </Text>
         <Text style={styles.historyDate}>
           {new Date(item.start_time).toLocaleDateString()}
         </Text>
       </View>
+      <Text style={styles.durationText}>
+        {formatDuration(item.duration)}
+      </Text>
     </View>
+  );
+
+  // Add cleanup effect
+  useEffect(() => {
+    return () => {
+      console.log('Profile screen unmounting, cleaning up audio...');
+      if (soundRef.current) {
+        soundRef.current.stopAsync()
+          .then(() => soundRef.current?.unloadAsync())
+          .catch(error => console.log('Error cleaning up audio:', error))
+          .finally(() => {
+            soundRef.current = null;
+            setPlayingAudioUrl(null);
+          });
+      }
+    };
+  }, []);
+
+  // Add focus effect to handle navigation
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // This runs when screen loses focus
+        console.log('Profile screen lost focus, stopping playback...');
+        if (soundRef.current) {
+          soundRef.current.stopAsync()
+            .then(() => soundRef.current?.unloadAsync())
+            .catch(error => console.log('Error stopping playback:', error))
+            .finally(() => {
+              soundRef.current = null;
+              setPlayingAudioUrl(null);
+            });
+        }
+      };
+    }, [])
   );
 
   return (
@@ -416,17 +533,27 @@ const styles = StyleSheet.create({
   },
   historyTextContainer: {
     flex: 1,
+    marginRight: 8,
   },
   historyItemTitle: {
+    color: colors.text,
     fontFamily: fonts.medium,
     fontSize: 16,
-    color: colors.text,
-    marginBottom: 4,
+    flex: 1,
+    marginRight: 8,
+    lineHeight: 20,
   },
   historyDate: {
+    color: colors.textSecondary,
     fontFamily: fonts.regular,
     fontSize: 14,
+    marginTop: 4,
+  },
+  durationText: {
     color: colors.textSecondary,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    alignSelf: 'center',
   },
   scrollView: {
     flex: 1,
