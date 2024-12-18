@@ -18,18 +18,18 @@ export const colors = {
   lavender: 'hsl(237, 70%, 81%)',    // Lavender
   lavenderDark: 'hsl(237, 68%, 76%)', // Darker lavender
   error: 'hsl(368, 63%, 51%)',
-  correct: '#72CDA8',                // New correct answer color
-  incorrect: '#EE5775',              // New incorrect answer color
-  buttonTextDark: '#1A1A1A', // Or any dark color you prefer
+  correct: '#72CDA8',                // Correct answer color
+  incorrect: '#EE5775',              // Incorrect answer color
+  buttonTextDark: '#1A1A1A', 
   pink: 'hsl(11, 33%, 88%)',
   pinkDark: 'hsl(11, 49%, 81%)',
 };
 
 export const fonts = {
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
-  semiBold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
+  regular: 'Inter_400Regular', 
+  medium: 'Inter_500Medium',    
+  semiBold: 'Inter_600SemiBold', 
+  bold: 'Inter_700Bold',        
 };
 
 export const globalStyles = StyleSheet.create({

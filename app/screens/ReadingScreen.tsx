@@ -9,7 +9,7 @@ import { getStories, Story } from '../../services/storyService';
 import { Audio } from 'expo-av';
 import { saveReadingSessionToDatabase, ReadingSession } from '../../services/readingSessionsHelpers';
 import ReadingEnergyDisplay from '../../components/shared/ReadingEnergyDisplay';
-import { updateUserReadingPoints } from '../../services/userService';
+import { updateUserReadingPoints, updateUserStreak } from '../../services/userService';
 import { ENERGY_GAIN_AMOUNT, ENERGY_GAIN_INTERVAL, MAX_ENERGY } from '../../services/yomiEnergyService';
 import { createClient } from '@supabase/supabase-js';
 import { syllabify } from '../../finnishHyphenation';
@@ -680,44 +680,54 @@ export default function ReadingScreen() {
       throw new Error('Missing user ID or story ID');
     }
 
-    const endTime = new Date();
-    const startTimeDate = startTime || new Date();
-    const totalPausedTime = pauseTimeRef.current ? (Date.now() - pauseTimeRef.current) : 0;
-    const durationInSeconds = Math.round((endTime.getTime() - startTimeDate.getTime() - totalPausedTime) / 1000);
+    try {
+      const endTime = new Date();
+      const startTimeDate = startTime || new Date();
+      const totalPausedTime = pauseTimeRef.current ? (Date.now() - pauseTimeRef.current) : 0;
+      const durationInSeconds = Math.round((endTime.getTime() - startTimeDate.getTime() - totalPausedTime) / 1000);
 
-    // Update reading points
-    await updateUserReadingPoints(params.userId, sessionEnergy);
+      // Update reading points
+      await updateUserReadingPoints(params.userId, sessionEnergy);
 
-    // Save the reading session
-    const readingSessionData: Omit<ReadingSession, 'id' | 'story_title'> = {
-      user_id: params.userId,
-      story_id: currentStory.id,
-      start_time: startTimeDate.toISOString(),
-      end_time: endTime.toISOString(),
-      duration: durationInSeconds,
-      energy_gained: localEnergy,
-      reading_points: localEnergy,
-      audio_url: audioUrl,
-      progress: 100,
-      completed: true
-    };
+      // Update streak
+      const newStreak = await updateUserStreak(params.userId);
+      console.log('Updated user streak:', newStreak);
 
-    const savedSession = await saveReadingSessionToDatabase(readingSessionData);
-    console.log('Reading session saved successfully:', savedSession);
+      // Save the reading session
+      const readingSessionData: Omit<ReadingSession, 'id' | 'story_title'> = {
+        user_id: params.userId,
+        story_id: currentStory.id,
+        start_time: startTimeDate.toISOString(),
+        end_time: endTime.toISOString(),
+        duration: durationInSeconds,
+        energy_gained: localEnergy,
+        reading_points: localEnergy,
+        audio_url: audioUrl,
+        progress: 100,
+        completed: true
+      };
 
-    // Navigate to QuizScreen
-    router.push({
-      pathname: "/screens/QuizScreen",
-      params: { 
-        readingSessionId: savedSession.id,
-        storyId: currentStory.id,
-        readingTime: durationInSeconds.toString(),
-        readingPoints: localEnergy.toString(),
-        energy: totalEnergy.toString(),
-        audioUri: audioUrl,
-        userId: params.userId
-      }
-    });
+      const savedSession = await saveReadingSessionToDatabase(readingSessionData);
+      console.log('Reading session saved successfully:', savedSession);
+
+      // Navigate to QuizScreen
+      router.push({
+        pathname: "/screens/QuizScreen",
+        params: { 
+          readingSessionId: savedSession.id,
+          storyId: currentStory.id,
+          readingTime: durationInSeconds.toString(),
+          readingPoints: localEnergy.toString(),
+          energy: totalEnergy.toString(),
+          audioUri: audioUrl,
+          userId: params.userId,
+          streak: newStreak.toString()
+        }
+      });
+    } catch (error) {
+      console.error('Error saving reading session:', error);
+      throw error;
+    }
   };
 
   // Render the Reading Screen UI

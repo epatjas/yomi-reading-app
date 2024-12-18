@@ -1,11 +1,20 @@
 import { useEffect } from 'react';
-import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts
+} from '@expo-google-fonts/inter';
 import { Slot } from 'expo-router';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    // Your fonts here
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   if (!fontsLoaded) {

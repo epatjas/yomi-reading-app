@@ -105,6 +105,13 @@ export async function getUserProfiles(): Promise<User[]> {
 
 export async function getUserReadingHistory(userId: string): Promise<ReadingSession[]> {
   try {
+    // Calculate start of current week
+    const today = new Date();
+    const currentDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
+    const startOfWeek = new Date();
+    startOfWeek.setDate(today.getDate() - currentDayIndex);
+    startOfWeek.setHours(0, 0, 0, 0);
+
     const { data, error } = await supabase
       .from('reading_sessions')
       .select(`
@@ -114,17 +121,15 @@ export async function getUserReadingHistory(userId: string): Promise<ReadingSess
         )
       `)
       .eq('user_id', userId)
+      .gte('start_time', startOfWeek.toISOString())
       .order('start_time', { ascending: false });
 
     if (error) throw error;
 
-    // Transform the data to include the story title
-    const transformedData = data?.map(session => ({
+    return data?.map(session => ({
       ...session,
       story_title: session.stories?.title || 'Unknown Story'
     })) || [];
-
-    return transformedData;
   } catch (error) {
     console.error('Error fetching user reading history:', error);
     throw error;
@@ -268,43 +273,29 @@ export async function getUserStreak(userId: string): Promise<number> {
     const diffTime = Math.abs(today.getTime() - lastReadDay.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    // If they read today, or read yesterday, maintain/increment streak
-    if (diffDays <= 1) {
-      // Get current streak from database
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('current_streak')
-        .eq('id', userId)
-        .single();
+    // Get current streak from database
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('current_streak')
+      .eq('id', userId)
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      let newStreak = userData.current_streak || 0;
-      
-      // If they read today and haven't been counted yet, increment streak
-      if (diffDays === 0 && lastReadDate.toDateString() === now.toDateString()) {
-        newStreak += 1;
-        
-        // Update the streak in the database
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({ current_streak: newStreak })
-          .eq('id', userId);
-
-        if (updateError) throw updateError;
-      }
-
-      return newStreak;
-    } else {
+    // If they haven't read today or yesterday, reset streak
+    if (diffDays > 1) {
       // Streak broken - reset to 0
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('users')
         .update({ current_streak: 0 })
         .eq('id', userId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
       return 0;
     }
+
+    // Return current streak without incrementing
+    return userData.current_streak || 0;
   } catch (error) {
     console.error('Error getting user streak:', error);
     return 0;
@@ -312,58 +303,57 @@ export async function getUserStreak(userId: string): Promise<number> {
 }
 
 export async function updateUserStreak(userId: string): Promise<number> {
-  const now = new Date();
-  const userTimeZone = await getUserTimeZone(userId); // New function to get user's time zone
-  const userMidnight = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
-  userMidnight.setHours(0, 0, 0, 0);
+  try {
+    const now = new Date();
+    const userTimeZone = await getUserTimeZone(userId);
+    const userMidnight = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
+    userMidnight.setHours(0, 0, 0, 0);
 
-  // Get the user's current streak and last read date
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('current_streak, last_read_date')
-    .eq('id', userId)
-    .single();
+    // Get the user's current streak and last read date
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('current_streak, last_read_date')
+      .eq('id', userId)
+      .single();
 
-  if (userError) {
-    console.error('Error fetching user data:', userError);
-    return 0;
-  }
+    if (userError) throw userError;
 
-  let newStreak = 1; // Default to 1 if starting a new streak
-  let shouldUpdateStreak = true;
+    let newStreak = 1; // Default to 1 for the first reading
+    
+    if (userData?.last_read_date) {
+      const lastReadDate = new Date(userData.last_read_date);
+      const lastReadMidnight = new Date(lastReadDate.toLocaleString('en-US', { timeZone: userTimeZone }));
+      lastReadMidnight.setHours(0, 0, 0, 0);
 
-  if (userData?.last_read_date) {
-    const lastReadDate = new Date(userData.last_read_date);
-    const lastReadMidnight = new Date(lastReadDate.toLocaleString('en-US', { timeZone: userTimeZone }));
-    lastReadMidnight.setHours(0, 0, 0, 0);
+      const daysDifference = Math.floor((userMidnight.getTime() - lastReadMidnight.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (lastReadMidnight.getTime() === userMidnight.getTime()) {
-      // User has already read today, don't update the streak
-      newStreak = userData.current_streak || 1;
-      shouldUpdateStreak = false;
-    } else if (lastReadMidnight.getTime() === userMidnight.getTime() - 86400000) {
-      // User read yesterday, increment the streak
-      newStreak = (userData.current_streak || 0) + 1;
-    } else {
-      // User missed a day, reset streak to 1
-      newStreak = 1;
+      if (daysDifference === 0) {
+        // Same day reading - maintain current streak
+        newStreak = userData.current_streak || 1;
+        return newStreak; // Early return as no update needed
+      } else if (daysDifference === 1) {
+        // Consecutive day reading - increment streak
+        newStreak = (userData.current_streak || 0) + 1;
+      }
+      // daysDifference > 1 means streak is broken, newStreak remains 1
     }
-  }
 
-  if (shouldUpdateStreak) {
-    // Update the user's streak and last read date
+    // Update the streak and last read date
     const { error: updateError } = await supabase
       .from('users')
-      .update({ current_streak: newStreak, last_read_date: now.toISOString() })
+      .update({
+        current_streak: newStreak,
+        last_read_date: now.toISOString()
+      })
       .eq('id', userId);
 
-    if (updateError) {
-      console.error('Error updating user streak:', updateError);
-      return 0;
-    }
-  }
+    if (updateError) throw updateError;
 
-  return newStreak;
+    return newStreak;
+  } catch (error) {
+    console.error('Error updating user streak:', error);
+    throw error;
+  }
 }
 
 // New function to get user's time zone
@@ -386,4 +376,21 @@ export async function getLastReadDate(userId: string): Promise<Date | null> {
   }
 
   return data?.last_read_date ? new Date(data.last_read_date) : null;
+}
+
+export async function saveReadingSession(userId: string, sessionData: any): Promise<void> {
+  try {
+    // Save the reading session
+    const { error } = await supabase
+      .from('reading_sessions')
+      .insert([{ ...sessionData, user_id: userId }]);
+
+    if (error) throw error;
+
+    // Update the streak
+    await updateUserStreak(userId);
+  } catch (error) {
+    console.error('Error saving reading session:', error);
+    throw error;
+  }
 }
