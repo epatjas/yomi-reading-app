@@ -259,43 +259,65 @@ export async function getTotalReadingPoints(userId: string): Promise<number> {
 
 export async function getUserStreak(userId: string): Promise<number> {
   try {
-    // First, get the last read date
-    const lastRead = await getLastReadDate(userId);
-    if (!lastRead) return 0;
+    // First, get all reading sessions from the past week to check for streak
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    // Get current date and last read date in user's timezone
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const lastReadDate = new Date(lastRead);
-    const lastReadDay = new Date(lastReadDate.getFullYear(), lastReadDate.getMonth(), lastReadDate.getDate());
-
-    // Calculate the difference in days
-    const diffTime = Math.abs(today.getTime() - lastReadDay.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    // Get current streak from database
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('current_streak')
-      .eq('id', userId)
-      .single();
+    const { data: sessions, error } = await supabase
+      .from('reading_sessions')
+      .select('start_time')
+      .eq('user_id', userId)
+      .gte('start_time', sevenDaysAgo.toISOString())
+      .order('start_time', { ascending: false });
 
     if (error) throw error;
+    if (!sessions || sessions.length === 0) return 0;
 
-    // If they haven't read today or yesterday, reset streak
-    if (diffDays > 1) {
-      // Streak broken - reset to 0
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ current_streak: 0 })
-        .eq('id', userId);
+    // Group sessions by date
+    const readDates = sessions.reduce((dates: Set<string>, session) => {
+      const date = new Date(session.start_time);
+      dates.add(date.toDateString());
+      return dates;
+    }, new Set<string>());
 
-      if (updateError) throw updateError;
-      return 0;
+    // Convert to array and sort in reverse chronological order
+    const sortedDates = Array.from(readDates)
+      .map(dateStr => new Date(dateStr))
+      .sort((a, b) => b.getTime() - a.getTime());
+
+    let streak = 1; // Start with 1 for the most recent day
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    // Count consecutive days
+    for (let i = 0; i < sortedDates.length - 1; i++) {
+      const currentDate = sortedDates[i];
+      const nextDate = sortedDates[i + 1];
+      
+      // Calculate the difference in days
+      const daysDiff = Math.round(
+        (currentDate.getTime() - nextDate.getTime()) / msPerDay
+      );
+
+      if (daysDiff === 1) {
+        streak++;
+      } else {
+        break; // Break if we find a gap
+      }
     }
 
-    // Return current streak without incrementing
-    return userData.current_streak || 0;
+    // Update the streak in the database
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ current_streak: streak })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating streak:', updateError);
+    }
+
+    return streak;
   } catch (error) {
     console.error('Error getting user streak:', error);
     return 0;
