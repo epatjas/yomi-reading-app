@@ -12,7 +12,7 @@ import { Audio } from 'expo-av';
 import OpenAI from 'openai';
 import * as FileSystem from 'expo-file-system';
 
-// Add these lines to create the Supabase client
+// supabase
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -37,7 +37,7 @@ interface Question {
 interface Story {
   id: string;
   title: string;
-  // ... other story properties if needed
+
 }
 
 const QuizScreen = () => {
@@ -86,7 +86,7 @@ const QuizScreen = () => {
   }, [questions]);
 
   useEffect(() => {
-    // No need to initialize Speech, it's ready to use
+   
   }, []);
 
   useEffect(() => {
@@ -274,10 +274,6 @@ const QuizScreen = () => {
     router.back();
   };
 
-  const handleMorePress = () => {
-    // Implement more options functionality
-  };
-
   const generateSpeech = async (text: string) => {
     try {
       // First, ensure any existing sound is unloaded
@@ -359,7 +355,6 @@ const QuizScreen = () => {
         <Header 
           title="Error" 
           onBackPress={handleBackPress}
-          onMorePress={() => {}}
         />
         <View style={styles.container}>
           <Text style={styles.errorText}>{error}</Text>
@@ -380,7 +375,6 @@ const QuizScreen = () => {
         <Header 
           title="Loading" 
           onBackPress={handleBackPress}
-          onMorePress={() => {}}
         />
         <View style={styles.container}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -398,7 +392,6 @@ const QuizScreen = () => {
         <Header 
           title="Error" 
           onBackPress={handleBackPress}
-          onMorePress={() => {}}
         />
         <View style={styles.container}>
           <Text style={styles.errorText}>Error: No question data available</Text>
@@ -426,7 +419,6 @@ const QuizScreen = () => {
       <Header 
         title={storyTitle || 'Quiz'}
         onBackPress={handleBackPress}
-        onMorePress={handleMorePress}
       />
       <View style={styles.container}>
         <View style={styles.topRow}>
