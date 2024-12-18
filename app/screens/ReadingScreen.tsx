@@ -10,7 +10,13 @@ import { Audio } from 'expo-av';
 import { saveReadingSessionToDatabase, ReadingSession } from '../../services/readingSessionsHelpers';
 import ReadingEnergyDisplay from '../../components/shared/ReadingEnergyDisplay';
 import { updateUserReadingPoints, updateUserStreak } from '../../services/userService';
-import { ENERGY_GAIN_AMOUNT, ENERGY_GAIN_INTERVAL, MAX_ENERGY } from '../../services/yomiEnergyService';
+import { 
+  ENERGY_GAIN_AMOUNT, 
+  ENERGY_GAIN_INTERVAL, 
+  MAX_ENERGY,
+  getUserEnergy, 
+  addReadingEnergy 
+} from '../../services/yomiEnergyService';
 import { createClient } from '@supabase/supabase-js';
 import { syllabify } from '../../finnishHyphenation';
 import { Linking } from 'react-native';
@@ -86,6 +92,24 @@ export default function ReadingScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [recordingError, setRecordingError] = useState<Error | null>(null);
+
+  // Add this effect to fetch the user's current energy when the screen loads
+  useEffect(() => {
+    const fetchUserEnergy = async () => {
+      if (!params.userId) return;
+      
+      try {
+        const currentEnergy = await getUserEnergy(params.userId);
+        setTotalEnergy(currentEnergy);
+        setLocalEnergy(0); // Reset session energy
+      } catch (error) {
+        console.error('Error fetching user energy:', error);
+        Alert.alert('Error', 'Failed to load energy status');
+      }
+    };
+
+    fetchUserEnergy();
+  }, [params.userId]);
 
   // This effect loads the story content when the component mounts or when the storyId changes.
   useEffect(() => {
@@ -709,6 +733,9 @@ export default function ReadingScreen() {
 
       const savedSession = await saveReadingSessionToDatabase(readingSessionData);
       console.log('Reading session saved successfully:', savedSession);
+
+      // Add the energy to user's current_energy
+      await addReadingEnergy(params.userId, durationInSeconds);
 
       // Navigate to QuizScreen
       router.push({

@@ -17,11 +17,10 @@ const formatTime = (milliseconds: number): string => {
 
 const ReadingResultsScreen: React.FC = () => {
   const router = useRouter();
-  const { readingSessionId, readingTime, readingPoints, energy, audioUri, correctAnswers, totalQuestions, userId, storyId } = useLocalSearchParams<{
+  const { readingSessionId, readingTime, readingPoints, audioUri, correctAnswers, totalQuestions, userId, storyId } = useLocalSearchParams<{
     readingSessionId: string;
     readingTime: string;
     readingPoints: string;
-    energy: string;
     audioUri: string;
     correctAnswers: string;
     totalQuestions: string;
@@ -29,29 +28,23 @@ const ReadingResultsScreen: React.FC = () => {
     storyId: string;
   }>();
 
-  const [currentEnergy, setCurrentEnergy] = useState(parseInt(energy || '0'));
-  const [overallEnergy, setOverallEnergy] = useState(0);
+  const [currentEnergy, setCurrentEnergy] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (readingSessionId) {
+      if (userId) {
         try {
-          const sessionEnergy = await getYomiEnergy(readingSessionId);
-          console.log('Energy gained in this session:', sessionEnergy);
-          setCurrentEnergy(sessionEnergy);
-
-          if (userId) {
-            const currentOverallEnergy = await getCurrentYomiEnergy(userId);
-            console.log('Current overall Yomi Energy:', currentOverallEnergy);
-            setOverallEnergy(currentOverallEnergy);
-          }
+          // Get the current overall energy
+          const currentOverallEnergy = await getCurrentYomiEnergy(userId);
+          console.log('Current overall Yomi Energy:', currentOverallEnergy);
+          setCurrentEnergy(currentOverallEnergy);
         } catch (error) {
           console.error('Error fetching energy data:', error);
         }
       }
     };
     fetchData();
-  }, [readingSessionId, userId]);
+  }, [userId]);
 
   // Convert reading time from seconds to minutes and seconds
   const readingTimeSeconds = readingTime ? parseInt(readingTime) : 0;
@@ -113,7 +106,7 @@ const ReadingResultsScreen: React.FC = () => {
           </View>
           
           <YomiEnergyDisplay 
-            energy={overallEnergy} 
+            energy={currentEnergy}
             onStatusPress={() => router.push({
               pathname: '/(tabs)',
               params: { userId: userId }

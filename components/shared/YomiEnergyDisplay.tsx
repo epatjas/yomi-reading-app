@@ -1,7 +1,8 @@
 import React, { memo, useMemo } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Zap } from 'lucide-react-native';
 import { colors, fonts, layout } from '../../app/styles/globalStyles';
+import { MAX_ENERGY } from '../../services/yomiEnergyService';
 
 // Correct imports
 import YomiMaxEnergy from '../../assets/images/yomi-max-energy.png';
@@ -12,6 +13,7 @@ import YomiVeryLowEnergy from '../../assets/images/yomi-very-low-energy.png';
 
 interface YomiEnergyDisplayProps {
   energy: number;
+  sessionEnergy?: number;
   onStatusPress?: () => void;
 }
 
@@ -23,14 +25,24 @@ const getYomiImage = (energy: number) => {
   return YomiVeryLowEnergy;
 };
 
-const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = memo(({ energy, onStatusPress }) => {
-  // Memoize the energy calculation
-  const displayEnergy = useMemo(() => {
+const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = memo(({ 
+  energy, 
+  sessionEnergy = 0, 
+  onStatusPress 
+}) => {
+  // Calculate total energy including session gains
+  const totalEnergy = useMemo(() => {
+    const total = Math.min(MAX_ENERGY, Math.max(0, Math.round(Number(energy) + Number(sessionEnergy))));
+    return total;
+  }, [energy, sessionEnergy]);
+
+  // Calculate base energy percentage
+  const baseEnergyPercentage = useMemo(() => {
     return Math.min(100, Math.max(0, Math.round(Number(energy) || 0)));
   }, [energy]);
 
-  // Memoize the Yomi image selection
-  const yomiImage = useMemo(() => getYomiImage(displayEnergy), [displayEnergy]);
+  // Memoize the Yomi image selection based on total energy
+  const yomiImage = useMemo(() => getYomiImage(totalEnergy), [totalEnergy]);
 
   return (
     <TouchableOpacity style={styles.container} onPress={onStatusPress}>
@@ -44,15 +56,32 @@ const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = memo(({ energy, onSt
         </View>
       </View>
       <View style={styles.energyInfo}>
-        <Text style={styles.energyNumber}>{displayEnergy}<Text style={styles.percentSign}>%</Text></Text>
+        <Text style={styles.energyNumber}>
+          {totalEnergy}<Text style={styles.percentSign}>%</Text>
+        </Text>
+        {sessionEnergy > 0 && (
+          <Text style={styles.energyGained}>+{sessionEnergy}%</Text>
+        )}
         <Text style={styles.energyText}>Energy level</Text>
       </View>
       <View style={styles.energyBarContainer}>
+        {/* Base energy bar */}
         <View style={[
-          styles.energyBarFill, 
-          { width: `${displayEnergy}%` },
-          displayEnergy === 100 ? { borderRadius: 8 } : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
+          styles.energyBarFill,
+          { width: `${baseEnergyPercentage}%` },
+          styles.baseEnergyBar
         ]} />
+        {/* Session energy bar */}
+        {sessionEnergy > 0 && (
+          <View style={[
+            styles.energyBarFill,
+            styles.sessionEnergyBar,
+            { 
+              width: `${Math.min(sessionEnergy, MAX_ENERGY - baseEnergyPercentage)}%`,
+              left: `${baseEnergyPercentage}%`
+            }
+          ]} />
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -122,6 +151,25 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: colors.yellowDark,
     borderRadius: 8,
+  },
+  energyGained: {
+    fontSize: 24,
+    fontFamily: fonts.medium,
+    color: colors.background,
+    marginLeft: 8,
+    opacity: 0.8,
+  },
+  baseEnergyBar: {
+    position: 'absolute',
+    left: 2,
+    top: 2,
+    backgroundColor: colors.yellowDark,
+  },
+  sessionEnergyBar: {
+    position: 'absolute',
+    top: 2,
+    backgroundColor: colors.primary,
+    opacity: 0.8,
   },
 });
 
