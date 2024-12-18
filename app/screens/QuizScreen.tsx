@@ -6,11 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import QuestionCard from '../../components/shared/QuestionCard';
 import ProgressCircle from '../../components/shared/ProgressCircle';
 import Header from '../../components/shared/Header';
-import { Volume2, } from 'lucide-react-native';
-import { shuffle } from 'lodash';
 import { Audio } from 'expo-av';
-import OpenAI from 'openai';
-import * as FileSystem from 'expo-file-system';
 
 // supabase
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -21,10 +17,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
-
-const openai = new OpenAI({
-  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
-});
 
 interface Question {
   id: string;
@@ -39,6 +31,15 @@ interface Story {
   title: string;
 
 }
+
+const shuffle = <T,>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
 
 const QuizScreen = () => {
   console.log('QuizScreen rendered');
@@ -68,8 +69,8 @@ const QuizScreen = () => {
   const feedbackAnimation = useRef(new Animated.Value(0)).current;
   const [showMessage, setShowMessage] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [storyTitle, setStoryTitle] = useState<string>('');
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   useEffect(() => {
     console.log('QuizScreen mounted with params:', params);
@@ -86,8 +87,12 @@ const QuizScreen = () => {
   }, [questions]);
 
   useEffect(() => {
-   
-  }, []);
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
 
   useEffect(() => {
     fetchStoryTitle();
@@ -185,6 +190,29 @@ const QuizScreen = () => {
     setIsAnswerChecked(false);
   };
 
+  const playCorrectSound = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/twinkle.mp3'),
+        { 
+          volume: 1.0,
+          shouldPlay: false
+        }
+      );
+      setSound(sound);
+      
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: false,
+      });
+      
+      await sound.playAsync();
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
+  };
+
   const handleCheckAnswer = async () => {
     if (!selectedAnswer) {
       setShowMessage(true);
@@ -201,6 +229,7 @@ const QuizScreen = () => {
 
     if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
+      await playCorrectSound();
     }
 
     // Animate feedback container
@@ -251,7 +280,7 @@ const QuizScreen = () => {
       setIsAnswerChecked(false);
       setIsCorrect(false);
       setAttempts(0);
-      setShowFeedback(false); // Close the feedback section
+      setShowFeedback(false);
     } else {
       // Quiz finished, navigate to results screen
       router.push({
@@ -273,77 +302,6 @@ const QuizScreen = () => {
   const handleBackPress = () => {
     router.back();
   };
-
-  const generateSpeech = async (text: string) => {
-    try {
-      // First, ensure any existing sound is unloaded
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
-      }
-
-      const mp3Response = await openai.audio.speech.create({
-        model: "tts-1",
-        voice: "onyx",
-        speed: 1.0,
-        input: text
-      });
-
-      const audioData = await mp3Response.arrayBuffer();
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
-
-      const tempFilePath = FileSystem.cacheDirectory + 'temp_audio.mp3';
-      await FileSystem.writeAsStringAsync(tempFilePath, base64Audio, { encoding: FileSystem.EncodingType.Base64 });
-
-      // Configure audio mode with basic settings
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-      });
-
-      // Create sound object with enhanced playback settings
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: tempFilePath },
-        { 
-          shouldPlay: false,
-          volume: 1.0,
-          rate: 1.0,
-          progressUpdateIntervalMillis: 100,
-          positionMillis: 0,
-        }
-      );
-
-      setSound(newSound);
-
-      // Ensure the device is set up for maximum volume
-      await Audio.setIsEnabledAsync(true);
-      
-      // Play with maximum volume
-      await newSound.playAsync();
-
-    } catch (error) {
-      console.error('Error generating speech:', error);
-    }
-  };
-
-  const handleListenPress = () => {
-    if (currentQuestion) {
-      if (sound) {
-        sound.stopAsync();
-      }
-      generateSpeech(currentQuestion.question_text);
-    }
-  };
-
-  useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
 
   const handleSkipQuestion = () => {
     handleNextQuestion();
@@ -419,19 +377,15 @@ const QuizScreen = () => {
       <Header 
         title={storyTitle || 'Quiz'}
         onBackPress={handleBackPress}
-      />
-      <View style={styles.container}>
-        <View style={styles.topRow}>
-          <TouchableOpacity onPress={handleListenPress} style={styles.listenButton}>
-            <Volume2 size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+        rightElement={
           <ProgressCircle 
             progress={(currentQuestionIndex + 1) / questions.length} 
             size={32} 
             strokeWidth={3} 
           />
-        </View>
-        
+        }
+      />
+      <View style={styles.container}>
         <QuestionCard
           question={currentQuestion.question_text}
           answers={shuffledAnswers}
@@ -474,12 +428,6 @@ const QuizScreen = () => {
           ]}
         >
           <View style={styles.feedbackContent}>
-            <View style={styles.yomiImageContainer}>
-              <Image 
-                source={isCorrect ? require('../../assets/images/yomi-correct.png') : require('../../assets/images/yomi.png')} 
-                style={styles.yomiImage}
-              />
-            </View>
             <Text style={styles.feedbackText}>
               {isCorrect ? 'Hienoa, oikein meni! Hyvin luettu.' : 'Oho, väärin meni. Kokeile uudelleen!'}
             </Text>
@@ -511,22 +459,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: layout.padding,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: layout.spacing,
-  },
-  listenButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.background02,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.stroke,
   },
   button: {
     backgroundColor: colors.primary,
@@ -567,32 +499,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: layout.spacing,
-    paddingBottom: 34,
+    paddingBottom: 32,
   },
   feedbackContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 0,
-  },
-  yomiImageContainer: {
-    width: 56,
-    height: 68,
-    borderRadius: 0,
-    overflow: 'hidden',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  yomiImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
+    marginVertical: layout.spacing,
   },
   feedbackText: {
-    flex: 1,
     fontSize: 16,
     fontFamily: fonts.medium,
     color: colors.text,
+    textAlign: 'center',
   },
   gotItButton: {
     borderRadius: 30,

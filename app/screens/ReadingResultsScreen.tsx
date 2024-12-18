@@ -6,6 +6,7 @@ import { colors, fonts, layout } from '../styles/globalStyles';
 import YomiEnergyDisplay from '../../components/shared/YomiEnergyDisplay';
 import { getYomiEnergy, getCurrentYomiEnergy } from '../../services/yomiEnergyService';
 import AudioPlayer from '../../components/shared/AudioPlayer';
+import { supabase } from '../../services/supabase';
 
 // Add this utility function at the top of your file
 const formatTime = (milliseconds: number): string => {
@@ -13,6 +14,17 @@ const formatTime = (milliseconds: number): string => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
+
+const verifySessionSaved = async (userId: string) => {
+  console.log('Verifying session data for user:', userId);
+  const { data, error } = await supabase
+    .from('reading_sessions')
+    .select('*')
+    .eq('user_id', userId);
+  
+  console.log('Database check - All sessions:', data);
+  console.log('Database check - Error:', error);
 };
 
 const ReadingResultsScreen: React.FC = () => {
@@ -44,6 +56,12 @@ const ReadingResultsScreen: React.FC = () => {
       }
     };
     fetchData();
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      verifySessionSaved(userId);
+    }
   }, [userId]);
 
   // Convert reading time from seconds to minutes and seconds

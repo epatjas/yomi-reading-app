@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from './supabase';
 import { INITIAL_ENERGY } from './yomiEnergyService';
 import { ReadingSession } from './readingSessionsHelpers';
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface User {
   id: string;
@@ -25,10 +20,10 @@ export async function createUserProfile(username: string, avatarUrl: string): Pr
       .upsert({ 
         username, 
         avatar_url: avatarUrl,
-        current_energy: INITIAL_ENERGY,
-        max_energy: 100, // or whatever your max energy value is
+        current_energy: 60,
+        max_energy: 100,
         reading_points: 0,
-        evolution_stage: 'initial', // or whatever your initial stage is
+        evolution_stage: 'initial',
         last_energy_update: new Date().toISOString()
       })
       .select()
@@ -218,25 +213,35 @@ export async function updateUserReadingPoints(userId: string, pointsToAdd: numbe
   }
 }
 
-export async function getTotalReadingTime(userId: string): Promise<number> {
+export const getTotalReadingTime = async (userId: string): Promise<number> => {
   try {
+    console.log('Fetching total reading time for user:', userId);
+    // First, let's check what's in the reading_sessions table for this user
+    const { data: allSessions, error: checkError } = await supabase
+      .from('reading_sessions')
+      .select('*')
+      .eq('user_id', userId);
+    
+    console.log('All sessions for user:', allSessions); // This will show us all session data
+
     const { data, error } = await supabase
       .from('reading_sessions')
       .select('duration')
       .eq('user_id', userId);
 
-    if (error) throw error;
-
-    console.log('Reading sessions data:', data); // Add this log
+    if (error) {
+      console.error('Error fetching reading time:', error);
+      return 0;
+    }
 
     const totalSeconds = data.reduce((sum, session) => sum + (session.duration || 0), 0);
-    console.log('Total reading time (seconds):', totalSeconds); // Add this log
+    console.log('Total reading time (seconds):', totalSeconds);
     return totalSeconds;
   } catch (error) {
-    console.error('Error fetching total reading time:', error);
-    throw error;
+    console.error('Error in getTotalReadingTime:', error);
+    return 0;
   }
-}
+};
 
 export async function getTotalReadingPoints(userId: string): Promise<number> {
   console.log('Fetching total reading points for user:', userId);
@@ -400,17 +405,42 @@ export async function getLastReadDate(userId: string): Promise<Date | null> {
   return data?.last_read_date ? new Date(data.last_read_date) : null;
 }
 
-export async function saveReadingSession(userId: string, sessionData: any): Promise<void> {
+export async function saveReadingSession(
+  userId: string, 
+  sessionData: Partial<ReadingSession>
+): Promise<ReadingSession | null> {
   try {
-    // Save the reading session
-    const { error } = await supabase
-      .from('reading_sessions')
-      .insert([{ ...sessionData, user_id: userId }]);
+    console.log('Saving reading session:', { userId, sessionData });
+    
+    // Ensure required fields
+    const session = {
+      user_id: userId,
+      ...sessionData,
+      start_time: sessionData.start_time || new Date().toISOString()
+    };
 
-    if (error) throw error;
+    const { data, error } = await supabase
+      .from('reading_sessions')
+      .insert([session])
+      .select(`
+        *,
+        stories:story_id (
+          title
+        )
+      `)
+      .single();
+
+    if (error) {
+      console.error('Database error saving session:', error);
+      throw error;
+    }
+
+    console.log('Successfully saved reading session:', data);
 
     // Update the streak
     await updateUserStreak(userId);
+
+    return data;
   } catch (error) {
     console.error('Error saving reading session:', error);
     throw error;
