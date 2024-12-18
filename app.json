@@ -7,6 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "yomi",
     "userInterfaceStyle": "automatic",
+    "entryPoint": "./index.js",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -36,7 +37,8 @@
         {
           "microphonePermission": "Allow Yomi to access your microphone."
         }
-      ]
+      ],
+      "expo-blur"
     ],
     "experiments": {
       "typedRoutes": true

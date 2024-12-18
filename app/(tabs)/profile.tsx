@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     borderColor: colors.stroke,
   },
   historyIconContainer: {
-    backgroundColor: colors.lavender,
+    backgroundColor: colors.yellowLight,
     borderRadius: 12,
     padding: 8,
     marginRight: layout.spacing,
