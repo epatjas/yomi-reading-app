@@ -95,6 +95,8 @@ export default function ReadingScreen() {
   const isCleaningUp = useRef(false);
   const statusMonitorInterval = useRef<NodeJS.Timeout | null>(null);
   const [isStopLoading, setIsStopLoading] = useState(false);
+  const [readingState, setReadingState] = useState<'initial' | 'preparing' | 'recording'>('initial');
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Add this effect to fetch the user's current energy when the screen loads
   useEffect(() => {
@@ -338,9 +340,9 @@ export default function ReadingScreen() {
   // Update handleStartReading with better error handling
   const handleStartReading = async () => {
     try {
-      console.log('Starting reading session...');
+      setReadingState('preparing');
       
-      // Initialize audio if needed
+      // Initialize audio
       if (!audioInitialized) {
         const audioReady = await initializeAudio();
         if (!audioReady) {
@@ -348,43 +350,33 @@ export default function ReadingScreen() {
         }
       }
 
+      // Show countdown or preparation UI
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Start recording
       const newRecording = await startRecording();
       if (!newRecording) {
         throw new Error('Failed to create recording');
       }
 
-      // Update UI states
       setRecording(newRecording);
+      setReadingState('recording');
       setIsReading(true);
       setStartTime(new Date());
       setIsRecordingInterfaceVisible(true);
       setIsRecordingUnloaded(false);
-      
-      // Add this animation code
+
+      // Start animation
       Animated.timing(recordingAnimation, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
 
-      setTotalElapsedTime(0);
-      setIsPaused(false);
-      setLastEnergyGainTime(null);
-
-      console.log('Recording started successfully');
     } catch (error) {
       console.error('Error in handleStartReading:', error);
-      // Clean up any partial state
-      setIsReading(false);
-      setIsRecordingInterfaceVisible(false);
-      setRecording(null);
-      
-      Alert.alert(
-        'Error',
-        'Unable to start reading session. Please try again.',
-        [{ text: 'OK' }]
-      );
+      setReadingState('initial');
+      Alert.alert('Error', 'Unable to start reading session. Please try again.');
     }
   };
 
@@ -892,6 +884,22 @@ export default function ReadingScreen() {
     }
   };
 
+  // Add milestone check
+  useEffect(() => {
+    const milestones = [25, 50, 75, 100];
+    const currentPercentage = (totalEnergy / MAX_ENERGY) * 100;
+    
+    const hitMilestone = milestones.some(milestone => {
+      const previousEnergy = ((totalEnergy - recentGain) / MAX_ENERGY) * 100;
+      return previousEnergy < milestone && currentPercentage >= milestone;
+    });
+
+    if (hitMilestone) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3000);
+    }
+  }, [totalEnergy, recentGain]);
+
   // Render the Reading Screen UI
   if (isLoading) {
     return (
@@ -923,6 +931,8 @@ export default function ReadingScreen() {
             sessionEnergy={localEnergy}
             recentGain={recentGain}
             isPaused={isPaused}
+            showCelebration={showCelebration}
+            readingState={readingState}
           />
         </View>
 
@@ -938,7 +948,23 @@ export default function ReadingScreen() {
         </ScrollView>
 
         <View style={styles.bottomContainer}>
-          {isRecordingInterfaceVisible ? (
+          {readingState === 'initial' && (
+            <TouchableOpacity
+              style={styles.readToYomiButton}
+              onPress={handleStartReading}
+            >
+              <Mic size={24} color={colors.text} />
+              <Text style={styles.readToYomiButtonText}>Lue Yomille</Text>
+            </TouchableOpacity>
+          )}
+          
+          {readingState === 'preparing' && (
+            <View style={styles.preparingContainer}>
+              <Text style={styles.preparingText}>Get ready to read...</Text>
+            </View>
+          )}
+          
+          {readingState === 'recording' && (
             <Animated.View 
               style={[
                 styles.recordingContainer,
@@ -978,14 +1004,6 @@ export default function ReadingScreen() {
                 </View>
               </View>
             </Animated.View>
-          ) : (
-            <TouchableOpacity
-              style={styles.readToYomiButton}
-              onPress={handleStartReading}
-            >
-              <Mic size={24} color={colors.text} />
-              <Text style={styles.readToYomiButtonText}>Read to Yomi</Text>
-            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -1098,6 +1116,7 @@ const styles = StyleSheet.create({
   },
   energyDisplayContainer: {
     marginBottom: layout.spacing,
+    height: 48,
   },
   contentContainer: {
     flex: 1,
@@ -1143,9 +1162,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 30,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   readToYomiButtonText: {
     color: colors.text,
@@ -1312,5 +1336,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(50, 50, 50, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  preparingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  preparingText: {
+    fontFamily: fonts.medium,
+    fontSize: 18,
+    color: colors.text,
+    textAlign: 'center',
   },
 });
