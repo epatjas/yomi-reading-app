@@ -1,6 +1,6 @@
-import { supabase } from './readingSessionsHelpers';
+import { supabase } from './supabase';
 
-export const INITIAL_ENERGY = 60;
+export const INITIAL_ENERGY = 100;
 export const MAX_ENERGY = 100;
 const MIN_ENERGY = 0;
 export const ENERGY_GAIN_AMOUNT = 5;

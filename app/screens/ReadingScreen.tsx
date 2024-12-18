@@ -1484,6 +1484,7 @@ const styles = StyleSheet.create({
     height: 60,
     backgroundColor: colors.background,
     borderRadius: 30,
+
   },
   recordingControls: {
     flexDirection: 'row',

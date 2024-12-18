@@ -46,8 +46,14 @@ export const saveReadingSessionToDatabase = async (
       completed
     };
 
-    // Your existing database save logic here
-    return session;
+    const { data, error } = await supabase
+      .from('reading_sessions')
+      .insert([session])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   } catch (error) {
     console.error('Error saving reading session:', error);
     throw error;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { colors, fonts, layout } from '../../app/styles/globalStyles';
 import { X, Check } from 'lucide-react-native';
 
@@ -21,8 +21,20 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   isCorrect,
 }) => {
   return (
-    <View style={styles.card}>
-      <Text style={styles.question}>{question}</Text>
+    <View style={styles.container}>
+      <View style={styles.questionContainer}>
+        <View style={styles.yomiWrapper}>
+          <View style={styles.yomiCircle}>
+            <Image 
+              source={require('../../assets/images/yomi-character.png')} 
+              style={styles.yomiImage}
+            />
+          </View>
+        </View>
+        <View style={styles.speechBubble}>
+          <Text style={styles.questionText}>{question}</Text>
+        </View>
+      </View>
       <View style={styles.answersContainer}>
         {answers.map((answer, index) => (
           <TouchableOpacity
@@ -58,14 +70,44 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.background,
+  container: {
+    flex: 1,
   },
-  question: {
-    fontSize: 20,
-    fontFamily: fonts.regular,
+  questionContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 48,
+    paddingHorizontal: 0,
+  },
+  yomiWrapper: {
+    marginRight: 12,
+  },
+  yomiCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 28,
+    backgroundColor: colors.yellowLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  yomiImage: {
+    width: '90%',
+    height: '90%',
+    resizeMode: 'contain',
+  },
+  speechBubble: {
+    flex: 1,
+    backgroundColor: colors.background02,
+    borderRadius: 16,
+    padding: 12,
+    marginLeft: 0,
+  },
+  questionText: {
+    fontSize: 16,
+    fontFamily: fonts.medium,
     color: colors.text,
-    marginBottom: layout.spacing * 2,
+    lineHeight: 24,
   },
   answersContainer: {
     flexDirection: 'row',

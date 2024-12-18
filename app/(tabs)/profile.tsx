@@ -10,6 +10,7 @@ import { updateUserProfile } from '../../services/userService';
 import { ReadingSession } from '../../services/readingSessionsHelpers';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from '../../services/supabase';
 
 // Add this interface at the top of your file
 interface UserProfile {
@@ -38,10 +39,10 @@ const avatars = [
 
 // Add helper function to format duration
 const formatDuration = (durationSeconds: number | undefined): string => {
-  if (!durationSeconds) return '0:00';
+  if (!durationSeconds || isNaN(durationSeconds)) return '0:00';
   
   const minutes = Math.floor(durationSeconds / 60);
-  const seconds = durationSeconds % 60;
+  const seconds = Math.floor(durationSeconds % 60);
   
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
@@ -63,48 +64,49 @@ export default function ProfileScreen() {
   const soundRef = useRef<Audio.Sound | null>(null);
   const [pausedPosition, setPausedPosition] = useState<number | null>(null);
 
-  useEffect(() => {
-    async function fetchUserData() {
-      try {
-        const storedUserId = await AsyncStorage.getItem('userId');
-        console.log('Stored userId:', storedUserId);
-        if (storedUserId) {
-          setUserId(storedUserId);
-          const userProfile = await getUserProfile(storedUserId);
-          if (userProfile) {
-            setUserAvatar(userProfile.avatar_url);
-            setUserName(userProfile.username);
-            const avatarIndex = avatars.findIndex(avatar => avatar.uri === userProfile.avatar_url);
-            setSelectedAvatar(avatarIndex !== -1 ? avatarIndex : 0);
-          }
+  useFocusEffect(
+    useCallback(() => {
+      async function fetchUserData() {
+        try {
+          const storedUserId = await AsyncStorage.getItem('userId');
+          console.log('Profile Screen - Fetching data for userId:', storedUserId);
           
-          // Fetch total reading time
-          const totalTime = await getTotalReadingTime(storedUserId);
-          setTotalReadingTime(totalTime);
+          if (storedUserId) {
+            setUserId(storedUserId);
+            
+            // Verify database connection
+            const { data: testData, error: testError } = await supabase
+              .from('reading_sessions')
+              .select('*')
+              .eq('user_id', storedUserId);
+            
+            console.log('Database connection test:', { testData, testError });
+            
+            // Rest of your fetch calls...
+            const userProfile = await getUserProfile(storedUserId);
+            if (userProfile) {
+              setUserAvatar(getAvatarUrl(userProfile) || null);
+              setUserName(userProfile.username || '');
+              const avatarIndex = avatars.findIndex(avatar => avatar.uri === userProfile.avatar_url);
+              setSelectedAvatar(avatarIndex !== -1 ? avatarIndex : 0);
+            }
+            
+            const totalTime = await getTotalReadingTime(storedUserId);
+            setTotalReadingTime(totalTime);
 
-          // Fetch total reading points
-          const totalPoints = await getTotalReadingPoints(storedUserId);
-          console.log('Fetched total reading points:', totalPoints);
-          setTotalReadingPoints(totalPoints);
+            const totalPoints = await getTotalReadingPoints(storedUserId);
+            setTotalReadingPoints(totalPoints);
 
-          // Fetch reading history
-          const history = await getUserReadingHistory(storedUserId);
-          console.log('Fetched reading history:', history);
-          setReadingHistory(history);
+            const history = await getUserReadingHistory(storedUserId);
+            setReadingHistory(history);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
       }
-    }
-    fetchUserData();
-
-    return () => {
-      if (sound) {
-        console.log('Unloading sound');
-        sound.unloadAsync();
-      }
-    };
-  }, []);
+      fetchUserData();
+    }, [])
+  );
 
   useEffect(() => {
     async function setupAudio() {
@@ -153,8 +155,16 @@ export default function ProfileScreen() {
 
   // Helper function to format seconds into hours and minutes
   const formatReadingTime = (totalSeconds: number) => {
+    if (totalSeconds < 60) {
+      return `${totalSeconds}s`;
+    }
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    
+    if (hours === 0) {
+      return minutes === 0 ? `${seconds}s` : `${minutes}min ${seconds}s`;
+    }
     return `${hours}h ${minutes}min`;
   };
 
@@ -254,38 +264,41 @@ export default function ProfileScreen() {
     }
   };
 
-  const renderReadingHistoryItem = ({ item }: { item: ReadingSession }) => (
-    <View style={styles.historyItem}>
-      <Pressable 
-        style={styles.historyIconContainer}
-        onPress={() => playAudio(item.audio_url)}
-        disabled={isAudioLoading}
-      >
-        {isAudioLoading && playingAudioUrl === item.audio_url ? (
-          <ActivityIndicator color={colors.background} size="small" />
-        ) : playingAudioUrl === item.audio_url ? (
-          <Pause size={20} color={colors.background} />
-        ) : (
-          <Play size={20} color={colors.background} />
-        )}
-      </Pressable>
-      <View style={styles.historyTextContainer}>
-        <Text 
-          style={styles.historyItemTitle}
-          numberOfLines={1}
-          ellipsizeMode="tail"
+  const renderReadingHistoryItem = ({ item }: { item: ReadingSession }) => {
+    console.log('Rendering history item:', item);
+    return (
+      <View style={styles.historyItem}>
+        <Pressable 
+          style={styles.historyIconContainer}
+          onPress={() => playAudio(item.audio_url)}
+          disabled={isAudioLoading}
         >
-          {item.story_title || `Story ${item.story_id}`}
-        </Text>
-        <Text style={styles.historyDate}>
-          {new Date(item.start_time).toLocaleDateString()}
+          {isAudioLoading && playingAudioUrl === item.audio_url ? (
+            <ActivityIndicator color={colors.background} size="small" />
+          ) : playingAudioUrl === item.audio_url ? (
+            <Pause size={20} color={colors.background} />
+          ) : (
+            <Play size={20} color={colors.background} />
+          )}
+        </Pressable>
+        <View style={styles.historyTextContainer}>
+          <Text 
+            style={styles.historyItemTitle}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.story_title || `Story ${item.story_id}`}
+          </Text>
+          <Text style={styles.historyDate}>
+            {new Date(item.start_time).toLocaleDateString()}
+          </Text>
+        </View>
+        <Text style={styles.durationText}>
+          {formatDuration(item.duration)}
         </Text>
       </View>
-      <Text style={styles.durationText}>
-        {formatDuration(item.duration)}
-      </Text>
-    </View>
-  );
+    );
+  };
 
   // Add cleanup effect
   useEffect(() => {
@@ -321,6 +334,11 @@ export default function ProfileScreen() {
       };
     }, [])
   );
+
+  console.log('Formatting reading time:', {
+    totalReadingTime,
+    formatted: formatReadingTime(totalReadingTime)
+  });
 
   return (
     <SafeAreaView style={styles.safeArea}>

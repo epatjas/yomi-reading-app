@@ -6,16 +6,21 @@ import { colors, fonts, layout } from '../../app/styles/globalStyles';
 interface HeaderProps {
   title: string;
   onBackPress: () => void;
+  rightElement?: React.ReactNode;
 }
 
-const Header = ({ title, onBackPress }: HeaderProps) => {
+const Header: React.FC<HeaderProps> = ({ title, onBackPress, rightElement }) => {
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBackPress} style={styles.headerButton}>
         <ArrowLeft size={24} color={colors.text} />
       </TouchableOpacity>
       <Text style={styles.title}>{title}</Text>
-      <View style={styles.headerButton} />
+      {rightElement && (
+        <View style={styles.rightElement}>
+          {rightElement}
+        </View>
+      )}
     </View>
   );
 };
@@ -40,6 +45,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     textAlign: 'center',
+    marginLeft: -40, // Offset the width of headerButton to center properly
+  },
+  rightElement: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    right: 12,
   },
 });
 
