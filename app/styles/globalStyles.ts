@@ -5,7 +5,7 @@ export const colors = {
   background: 'hsl(240, 10%, 8%)',    // Dark background
   background01: 'hsl(240, 10%, 8%)',  // Dark background (alias)
   background02: 'hsl(240, 13%, 10%)', // Slightly lighter dark background
-  yellowLight: 'hsl(51, 76%, 65%)',   // Light yellow
+  yellowLight: 'hsl(46, 100%, 78%)',   // Light yellow
   yellowMedium: 'hsl(51, 60%, 55%)',  // Medium yellow
   yellowDark: 'hsl(51, 75%, 40%)',    // Dark yellow
   text: 'hsl(240, 100%, 97%)',        // Light text color

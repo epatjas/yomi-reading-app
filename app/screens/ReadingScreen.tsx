@@ -1,6 +1,6 @@
 // Import necessary React and React Native components
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch, ActivityIndicator } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { MoreVertical, ArrowLeft, Square, Mic, X, Play, Pause } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -94,6 +94,7 @@ export default function ReadingScreen() {
   const [recordingError, setRecordingError] = useState<Error | null>(null);
   const isCleaningUp = useRef(false);
   const statusMonitorInterval = useRef<NodeJS.Timeout | null>(null);
+  const [isStopLoading, setIsStopLoading] = useState(false);
 
   // Add this effect to fetch the user's current energy when the screen loads
   useEffect(() => {
@@ -394,7 +395,10 @@ export default function ReadingScreen() {
       return;
     }
 
-    let localRecording = recording; // Store reference to current recording
+    // Set loading state at the start
+    setIsStopLoading(true);
+
+    let localRecording = recording;
     let uri: string | null = null;
 
     try {
@@ -426,7 +430,6 @@ export default function ReadingScreen() {
             console.log('Recording stopped successfully');
           } catch (stopError) {
             console.error('Error stopping recording:', stopError);
-            // Continue even if stop fails - we might still have the URI
           }
         }
 
@@ -439,7 +442,6 @@ export default function ReadingScreen() {
 
       } catch (recordingError) {
         console.error('Recording operation error:', recordingError);
-        // Continue if we have a URI, otherwise throw
         if (!uri) {
           throw recordingError;
         }
@@ -449,28 +451,18 @@ export default function ReadingScreen() {
         throw new Error('No recording URI available');
       }
 
-      // Clean up UI state
-      setIsReading(false);
-      setIsRecordingInterfaceVisible(false);
-      setIsPaused(false);
-      setLastEnergyGainTime(null);
+      // Keep the pause state
+      setIsPaused(true);
 
       // Verify file exists and has content
       try {
         const response = await fetch(uri);
         const fileInfo = await response.blob();
         console.log('Recording file size:', fileInfo.size, 'bytes');
-        console.log('Recording file type:', fileInfo.type);
         
         if (fileInfo.size === 0) {
           throw new Error('Recording file is empty');
         }
-
-        console.log('Recording details:', {
-          uri,
-          size: fileInfo.size,
-          type: fileInfo.type
-        });
 
         // Upload to Supabase
         console.log('Starting Supabase upload process...');
@@ -483,41 +475,35 @@ export default function ReadingScreen() {
           throw new Error('Failed to upload recording');
         }
 
-        // Save session data
+        // Save session data and navigate to QuizScreen
         if (!audioUrl) {
           throw new Error('No audio URL received from upload');
         }
 
         console.log('Saving reading session with audio URL:', audioUrl);
         await saveReadingSession(audioUrl);
+        // Navigation happens in saveReadingSession
 
-      } catch (fileError) {
-        console.error('Error verifying recording file:', fileError);
-        throw new Error('Failed to verify recording file');
+      } catch (error) {
+        console.error('Error in handleStopReading:', error);
+        Alert.alert(
+          'Error',
+          error instanceof Error ? error.message : 'Failed to complete reading session'
+        );
+        
+        // Only hide the interface if there's an error
+        setIsReading(false);
+        setIsRecordingInterfaceVisible(false);
       }
 
-      // Stop animation
-      Animated.timing(recordingAnimation, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-
-    } catch (error) {
-      console.error('Error in handleStopReading:', error);
-      Alert.alert(
-        'Error',
-        error instanceof Error ? error.message : 'Failed to complete reading session'
-      );
     } finally {
-      // Clear status monitoring interval
       if (statusMonitorInterval.current) {
         clearInterval(statusMonitorInterval.current);
         statusMonitorInterval.current = null;
       }
       isCleaningUp.current = false;
-      setRecording(null);
-      setIsRecordingUnloaded(true);
+      // Reset loading state in finally block
+      setIsStopLoading(false);
     }
   };
 
@@ -978,8 +964,16 @@ export default function ReadingScreen() {
                   <TouchableOpacity onPress={handlePauseResume} style={styles.pauseButton}>
                     {isPaused ? <Play size={20} color={colors.text} /> : <Pause size={20} color={colors.text} />}
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleStopReading} style={styles.stopButton}>
-                    <Square size={20} color={colors.text} />
+                  <TouchableOpacity 
+                    onPress={handleStopReading} 
+                    style={styles.stopButton}
+                    disabled={isStopLoading}
+                  >
+                    {isStopLoading ? (
+                      <ActivityIndicator size="small" color="#191A22" />
+                    ) : (
+                      <Square size={20} color="#191A22" />
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1161,14 +1155,22 @@ const styles = StyleSheet.create({
   },
   recordingContainer: {
     position: 'absolute',
-    bottom: 20,
-    left: 16,
-    right: 16,
-    backgroundColor: colors.background02,
+    bottom: 8,
+    left: 0,
+    right: 0,
     borderRadius: 30,
     borderWidth: 1,
     borderColor: colors.stroke,
     overflow: 'hidden',
+    backgroundColor: colors.background02,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -1299,7 +1301,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.text,
     alignItems: 'center',
     justifyContent: 'center',
   },
