@@ -53,6 +53,8 @@ export default function HomeScreen() {
         if (id) {
           const userId = Array.isArray(id) ? id[0] : id;
           
+          console.log('Fetching user data for ID:', userId);
+          
           const [userProfile, energy, userStreak, lastRead] = await Promise.all([
             getUserProfile(userId),
             getCurrentYomiEnergy(userId),
@@ -61,9 +63,9 @@ export default function HomeScreen() {
           ]);
 
           console.log('Debug streak values:', {
-            lastRead,
+            lastRead: lastRead ? lastRead.toISOString() : null,
             userStreak,
-            currentDay: new Date().toDateString()
+            currentDay: new Date().toISOString()
           });
 
           setUserAvatar(getAvatarUrl(userProfile));
@@ -103,10 +105,13 @@ export default function HomeScreen() {
       lastReadDate.toDateString() === new Date().toDateString();
 
     return dayMarkers.map((day, index) => {
-      const isActive = index <= currentDayIndex && (index < currentDayIndex || hasReadToday);
+      const isActive = hasReadToday && index === currentDayIndex;
+
       return (
         <View key={day} style={styles.dayMarker}>
-          <Text style={[styles.dayText, index === currentDayIndex && styles.todayText]}>{day}</Text>
+          <Text style={[styles.dayText, index === currentDayIndex && styles.todayText]}>
+            {day}
+          </Text>
           <View style={[
             styles.dayDot, 
             index === currentDayIndex && styles.todayDot,
