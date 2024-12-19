@@ -10,6 +10,12 @@
     "entryPoint": "./index.js",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.elinapatjas.yomi",
+      "buildNumber": "1",
+      "icon": "./assets/images/icon.png",
+      "icons": {
+        "app": "./assets/images/icon.png"
+      },
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app needs access to your microphone to record audio while reading.",
         "UIBackgroundModes": ["audio"]
