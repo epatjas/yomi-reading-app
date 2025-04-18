@@ -1,1 +1,47 @@
- 
+{
+  "cli": {
+    "version": ">= 5.9.1"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rkexvjlqjbqktwwipfmi.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your_anon_key"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rkexvjlqjbqktwwipfmi.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "use_env_var"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rkexvjlqjbqktwwipfmi.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "use_env_var"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "elinapatjas@gmail.com",
+        "ascAppId": "6739611621",
+        "appleTeamId": "YP34LGZJWZ9"
+      }
+    }
+  }
+} 
