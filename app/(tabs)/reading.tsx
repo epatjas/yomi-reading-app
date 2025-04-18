@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getStories, Story } from '../../services/storyService';
 import { getYomiEnergy } from '../../services/yomiEnergyService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 
 const getYomiImage = (energy: number) => {
   if (energy >= 80) return require('../../assets/images/yomi-max-energy.png');
@@ -17,6 +18,7 @@ const getYomiImage = (energy: number) => {
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const { userId: routeUserId } = useLocalSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
@@ -89,7 +91,7 @@ export default function LibraryScreen() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       console.error('Navigation error:', errorMessage);
-      Alert.alert('Error', `Failed to open story: ${errorMessage}`);
+      Alert.alert(t('common.error'), `Failed to open story: ${errorMessage}`);
     }
   };
 
@@ -97,21 +99,38 @@ export default function LibraryScreen() {
     ? stories.filter(story => story.difficulty === selectedDifficulty)
     : stories;
 
+  // Map our translation difficulty key to the original difficulty strings used in the story data
+  const getDifficultyKey = (difficulty: string) => {
+    switch(difficulty) {
+      case t('library.easy'): return 'Easy';
+      case t('library.medium'): return 'Medium';
+      case t('library.hard'): return 'Hard';
+      default: return difficulty;
+    }
+  };
+
   const renderDifficultyFilter = () => (
     <View style={styles.filterContainer}>
-      {['Easy', 'Medium', 'Hard'].map((difficulty) => (
+      {[
+        t('library.easy'), 
+        t('library.medium'), 
+        t('library.hard')
+      ].map((difficulty) => (
         <TouchableOpacity
           key={difficulty}
           style={[
             styles.filterButton,
-            selectedDifficulty === difficulty && styles.filterButtonActive
+            selectedDifficulty === getDifficultyKey(difficulty) && styles.filterButtonActive
           ]}
-          onPress={() => setSelectedDifficulty(selectedDifficulty === difficulty ? null : difficulty)}
+          onPress={() => {
+            const difficultyValue = getDifficultyKey(difficulty);
+            setSelectedDifficulty(selectedDifficulty === difficultyValue ? null : difficultyValue);
+          }}
         >
           <Text style={styles.filterButtonText}>
-            {difficulty === 'Easy' && '☆ '}
-            {difficulty === 'Medium' && '☆☆ '}
-            {difficulty === 'Hard' && '☆☆☆ '}
+            {difficulty === t('library.easy') && '☆ '}
+            {difficulty === t('library.medium') && '☆☆ '}
+            {difficulty === t('library.hard') && '☆☆☆ '}
             {difficulty}
           </Text>
         </TouchableOpacity>
@@ -143,7 +162,11 @@ export default function LibraryScreen() {
       </View>
       <View style={styles.bookInfo}>
         <Text style={styles.bookTitle}>{item.title}</Text>
-        <Text style={styles.bookWords}>{item["word-count"] ? `${item["word-count"]} sanaa` : 'Word count unavailable'}</Text>
+        <Text style={styles.bookWords}>
+          {item["word-count"] 
+            ? `${item["word-count"]} ${t('library.wordCount')}` 
+            : t('library.wordCountUnavailable')}
+        </Text>
       </View>
     </Pressable>
   );
@@ -156,12 +179,12 @@ export default function LibraryScreen() {
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>Library</Text>
+          <Text style={styles.headerTitle}>{t('library.title')}</Text>
           <View style={styles.headerRightPlaceholder} />
         </View>
 
         {/* New title */}
-        <Text style={styles.pageTitle}>What do you want to read?</Text>
+        <Text style={styles.pageTitle}>{t('library.pageTitle')}</Text>
 
         {renderDifficultyFilter()}
 

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import { getUserProfiles } from '../../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 
 type Profile = {
   id: string;
@@ -18,6 +19,7 @@ const AVATAR_SIZE = Math.min(ITEM_WIDTH * 0.8, height * 0.15); // Limit avatar s
 
 export default function SelectProfileScreen() {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function SelectProfileScreen() {
       const userProfiles = await getUserProfiles();
       setProfiles(userProfiles);
     } catch (error) {
-      console.error('Error loading profiles:', error);
+      console.error(t('errors.loadingProfiles'), error);
     }
   };
 
@@ -56,7 +58,7 @@ export default function SelectProfileScreen() {
           <View style={styles.addNewAvatar}>
             <Text style={styles.addNewIcon}>+</Text>
           </View>
-          <Text style={styles.username}>Add new</Text>
+          <Text style={styles.username}>{t('selectProfile.addNew')}</Text>
         </Pressable>
       );
     }
@@ -71,7 +73,7 @@ export default function SelectProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Who's reading?</Text>
+        <Text style={styles.title}>{t('selectProfile.title')}</Text>
         <FlatList
           data={[...profiles, 'add']}
           renderItem={renderItem}
@@ -93,7 +95,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: layout.padding,
-    paddingTop: height * 0.1, // Reduced top padding
+    paddingTop: height * 0.08, // Slightly reduced top padding
   },
   title: {
     fontSize: 24,

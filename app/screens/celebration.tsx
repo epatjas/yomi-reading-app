@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Image, Dimensions } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, fonts, layout } from '../styles/globalStyles';
+import { useTranslation } from 'react-i18next';
 
 const { width, height } = Dimensions.get('window');
 const YOMI_SIZE = Math.min(width * 0.5, height * 0.3);
@@ -9,6 +10,7 @@ const YOMI_SIZE = Math.min(width * 0.5, height * 0.3);
 export default function CelebrationScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
+  const { t } = useTranslation('common');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const yomiAnim = useRef(new Animated.Value(0)).current;
@@ -63,7 +65,7 @@ export default function CelebrationScreen() {
           transform: [{ scale: scaleAnim }]
         }
       ]}>
-        Your reading adventure is about to begin
+        {t('celebration.message')}
       </Animated.Text>
     </View>
   );

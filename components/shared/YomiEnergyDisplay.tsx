@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from 'react
 import { Zap } from 'lucide-react-native';
 import { colors, fonts, layout } from '../../app/styles/globalStyles';
 import { MAX_ENERGY } from '../../services/yomiEnergyService';
+import { useTranslation } from 'react-i18next';
 
 // Correct imports
 import YomiMaxEnergy from '../../assets/images/yomi-max-energy.png';
@@ -30,6 +31,8 @@ const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = memo(({
   sessionEnergy = 0, 
   onStatusPress 
 }) => {
+  const { t } = useTranslation('common');
+  
   // Calculate total energy including session gains
   const totalEnergy = useMemo(() => {
     const total = Math.min(MAX_ENERGY, Math.max(0, Math.round(Number(energy) + Number(sessionEnergy))));
@@ -62,7 +65,7 @@ const YomiEnergyDisplay: React.FC<YomiEnergyDisplayProps> = memo(({
         {sessionEnergy > 0 && (
           <Text style={styles.energyGained}>+{sessionEnergy}%</Text>
         )}
-        <Text style={styles.energyText}>Energy level</Text>
+        <Text style={styles.energyText}>{t('components.yomiEnergy.energyLevel')}</Text>
       </View>
       <View style={styles.energyBarContainer}>
         {/* Base energy bar */}

@@ -2,12 +2,18 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { globalStyles, colors, fonts, layout } from '../styles/globalStyles';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/shared/LanguageSwitcher';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { t } = useTranslation('common');
 
   return (
     <View style={[globalStyles.container, styles.screenLayout]}>
+      <View style={styles.header}>
+        <LanguageSwitcher />
+      </View>
       <View style={styles.contentContainer}>
         <Image
           source={require('../../assets/images/yomi-character.png')}
@@ -15,7 +21,7 @@ export default function WelcomeScreen() {
         />
         <View style={styles.speechBubble}>
           <Text style={styles.welcomeText}>
-            Let's create your first reader profile!
+            {t('welcome.message')}
           </Text>
         </View>
       </View>
@@ -23,7 +29,7 @@ export default function WelcomeScreen() {
         style={[globalStyles.button, styles.wideButton]} 
         onPress={() => router.push('/screens/create-profile')}
       >
-        <Text style={[globalStyles.buttonText, styles.centeredButtonText]}>Let's go</Text>
+        <Text style={[globalStyles.buttonText, styles.centeredButtonText]}>{t('welcome.button')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -35,6 +41,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: layout.paddingHorizontal,
     paddingVertical: layout.paddingVertical,
+  },
+  header: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: layout.spacing,
   },
   contentContainer: {
     alignItems: 'center',

@@ -6,6 +6,7 @@ import ChooseAvatar from '../../components/shared/choose-avatar';
 import { createUserProfile } from '../../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../supabase';
+import { useTranslation } from 'react-i18next';
 
 const avatars = [
   { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar1.png' },
@@ -23,6 +24,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CreateProfileScreen() {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [username, setUsername] = useState('');
@@ -42,7 +44,7 @@ export default function CreateProfileScreen() {
 
   const handleStartReading = async () => {
     if (!username.trim()) {
-      Alert.alert("Oops!", "Please enter a username before starting.");
+      Alert.alert(t('common.oops'), t('errors.enterUsername'));
       return;
     }
 
@@ -62,14 +64,14 @@ export default function CreateProfileScreen() {
         });
       } else {
         console.log('Profile creation returned null');
-        Alert.alert("Error", "Failed to create profile. Please check your database connection and try again.");
+        Alert.alert(t('common.error'), t('errors.createProfileFailed'));
       }
     } catch (error) {
       console.error('Error in handleStartReading:', error);
       if (error instanceof Error) {
-        Alert.alert("Error", `Failed to create profile: ${error.message}`);
+        Alert.alert(t('common.error'), `${t('errors.createProfileFailed')} ${error.message}`);
       } else {
-        Alert.alert("Error", "An unknown error occurred. Please try again.");
+        Alert.alert(t('common.error'), t('errors.unknown'));
       }
     }
   };
@@ -78,25 +80,25 @@ export default function CreateProfileScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.avatarSection}>
-          <Text style={styles.title}>Who's reading?</Text>
+          <Text style={styles.title}>{t('createProfile.title')}</Text>
           <Pressable onPress={handleOpenAvatarModal} style={styles.avatarContainer}>
             <Image source={avatars[selectedAvatar]} style={styles.avatar} />
-            <Text style={styles.changeAvatarText}>Change avatar</Text>
+            <Text style={styles.changeAvatarText}>{t('createProfile.changeAvatar')}</Text>
           </Pressable>
         </View>
         <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>How can we call you?</Text>
+          <Text style={styles.inputLabel}>{t('createProfile.inputLabel')}</Text>
           <TextInput
             style={styles.input}
             value={username}
             onChangeText={setUsername}
-            placeholder="SuperReader123"
+            placeholder={t('createProfile.inputPlaceholder')}
             placeholderTextColor={colors.textSecondary}
           />
         </View>
       </View>
       <Pressable style={styles.startButton} onPress={handleStartReading}>
-        <Text style={styles.startButtonText}>Let's start to read</Text>
+        <Text style={styles.startButtonText}>{t('createProfile.startButton')}</Text>
       </Pressable>
       <ChooseAvatar
         isVisible={isAvatarModalVisible}
