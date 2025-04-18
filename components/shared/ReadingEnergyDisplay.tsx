@@ -280,6 +280,7 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
               {t('components.readingEnergyDisplay.readyToRead')}
             </Text>
           </View>
+          <View style={styles.speechBubbleTail} />
         </View>
       ) : (
         <View style={styles.rightContainer}>
@@ -346,7 +347,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    height: 48,
+    minHeight: 48,
     marginBottom: 10,
   },
   yomiContainer: {
@@ -375,8 +376,9 @@ const styles = StyleSheet.create({
   },
   rightContainer: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 6,
     position: 'relative',
+    justifyContent: 'center',
   },
   energyBarContainer: {
     height: 16,
@@ -422,19 +424,46 @@ const styles = StyleSheet.create({
   initialStateContainer: {
     flex: 1,
     justifyContent: 'center',
-    marginLeft: 12,
+    marginLeft: 6,
+    position: 'relative',
+    alignSelf: 'stretch',
   },
   speechBubble: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.background02,
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    maxWidth: '100%',
+    width: '90%',
+    marginLeft: 10,
   },
   initialStateText: {
     color: colors.text,
     fontFamily: fonts.medium,
     fontSize: 14,
+    lineHeight: 20,
+    flexWrap: 'wrap',
+    textAlign: 'left',
+  },
+  speechBubbleTail: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -8,
+    left: 0,
+    width: 16,
+    height: 16,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderTopWidth: 8,
+    borderBottomWidth: 8,
+    borderRightWidth: 16,
+    borderLeftWidth: 0,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: colors.background02,
+    zIndex: 1,
+  },
+  speechBubbleTailBorder: {
+    display: 'none',
   },
   animationOverlay: {
     position: 'absolute',

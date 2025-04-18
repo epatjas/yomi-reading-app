@@ -92,14 +92,13 @@ const ReadingResultsScreen: React.FC = () => {
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft color={colors.text} size={24} />
             </TouchableOpacity>
-            <LanguageSwitcher />
           </View>
           <Text style={styles.title}>{t('readingResults.title')}</Text>
           
           <View style={styles.statsContainer}>
             <View style={[styles.statBox, styles.purpleBox]}>
               <View style={[styles.iconContainer, styles.purpleIconContainer]}>
-                <Timer color={colors.background} size={24} />
+                <Timer color={colors.background} size={20} />
               </View>
               <Text style={styles.statValue}>
                 {readingTimeMinutes}:{readingTimeRemainingSeconds.toString().padStart(2, '0')}
@@ -108,7 +107,7 @@ const ReadingResultsScreen: React.FC = () => {
             </View>
             <View style={[styles.statBox, styles.greenBox]}>
               <View style={[styles.iconContainer, styles.greenIconContainer]}>
-                <BookCheck color={colors.background} size={24} />
+                <BookCheck color={colors.background} size={20} />
               </View>
               <Text style={styles.statValue}>
                 {readingPoints ? parseInt(readingPoints) : 0}
@@ -124,7 +123,7 @@ const ReadingResultsScreen: React.FC = () => {
                 <Text style={styles.comprehensionLabel}>{t('readingResults.comprehension')}</Text>
               </View>
               <View style={styles.comprehensionIconContainer}>
-                <CheckCircle color={colors.background} size={24} />
+                <CheckCircle color={colors.background} size={20} />
               </View>
             </View>
           </View>
@@ -321,7 +320,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   buttonText: {
-    color: colors.text,
+    color: colors.buttonTextDark,
     fontSize: 16,
     fontFamily: fonts.medium,
   },

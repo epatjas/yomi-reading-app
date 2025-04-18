@@ -2,9 +2,13 @@
   "createProfile": {
     "title": "Who's reading?",
     "changeAvatar": "Change avatar",
-    "inputLabel": "How can we call you?",
-    "inputPlaceholder": "SuperReader123",
-    "startButton": "Let's start to read"
+    "inputLabel": "How can I call you?",
+    "inputPlaceholder": "Type your name",
+    "startButton": "Continue"
+  },
+  "chooseAvatar": {
+    "title": "Choose a profile pic",
+    "startReading": "Let's start to read"
   },
   "welcome": {
     "message": "Let's create your first reader profile!",
@@ -16,6 +20,12 @@
   },
   "celebration": {
     "message": "Your reading adventure is about to begin"
+  },
+  "common": {
+    "oops": "Oops!",
+    "error": "Error",
+    "ok": "OK",
+    "continue": "Continue"
   },
   "readingResults": {
     "title": "Your results",
@@ -139,10 +149,5 @@
     "createProfileFailed": "Failed to create profile. Please check your database connection and try again.",
     "unknown": "An unknown error occurred. Please try again.",
     "loadingProfiles": "Error loading profiles."
-  },
-  "common": {
-    "oops": "Oops!",
-    "error": "Error",
-    "ok": "OK"
   }
 } 

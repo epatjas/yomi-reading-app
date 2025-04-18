@@ -2,20 +2,30 @@
   "createProfile": {
     "title": "Kuka lukee?",
     "changeAvatar": "Vaihda avatar",
-    "inputLabel": "Millä nimellä kutsumme sinua?",
-    "inputPlaceholder": "SuperLukija123",
-    "startButton": "Aloitetaan lukeminen"
+    "inputLabel": "Millä nimellä kutsuisin sinua?",
+    "inputPlaceholder": "Kirjoita nimesi tähän",
+    "startButton": "Jatka"
+  },
+  "chooseAvatar": {
+    "title": "Valitse profiilikuva",
+    "startReading": "Aloita lukeminen"
   },
   "welcome": {
-    "message": "Luodaan ensimmäinen lukijaprofiilisi!",
-    "button": "Aloitetaan"
+    "message": "Luodaan sinulle ensin lukijaprofiili",
+    "button": "Aloita"
   },
   "selectProfile": {
     "title": "Kuka lukee?",
     "addNew": "Lisää uusi"
   },
   "celebration": {
-    "message": "Pian pääset lukuseikkailulle!"
+    "message": "Meowww! Lukuseikkailu alkakoon"
+  },
+  "common": {
+    "oops": "Hups!",
+    "error": "Virhe",
+    "ok": "OK",
+    "continue": "Jatka"
   },
   "readingResults": {
     "title": "Tuloksesi",
@@ -36,7 +46,7 @@
   },
   "library": {
     "title": "Kirjasto",
-    "pageTitle": "Mitä haluaisit lukea?",
+    "pageTitle": "Mitä luetaan tänään?",
     "easy": "Helppo",
     "medium": "Keskitaso",
     "hard": "Vaikea",
@@ -66,7 +76,7 @@
       },
       "neutral": {
         "line1": "Yomi näyttää vähän uniselta.",
-        "line2": "Lukeminen antaa Yomille paljon energiaa."
+        "line2": "Lukeminen antaa Yomille energiaa."
       },
       "sad": {
         "line1": "Yomi tarvitsee huolenpitoasi.",
@@ -139,10 +149,5 @@
     "createProfileFailed": "Profiilin luominen epäonnistui. Tarkista tietokantayhteys ja yritä uudelleen.",
     "unknown": "Tuntematon virhe tapahtui. Yritä uudelleen.",
     "loadingProfiles": "Virhe profiilien lataamisessa."
-  },
-  "common": {
-    "oops": "Hups!",
-    "error": "Virhe",
-    "ok": "OK"
   }
 } 

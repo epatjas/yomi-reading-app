@@ -8,10 +8,10 @@ export default function useFonts() {
     async function loadFonts() {
       try {
         await Font.loadAsync({
-          'Inter_400Regular': require('@expo-google-fonts/inter/Inter_400Regular.ttf'),
-          'Inter_500Medium': require('@expo-google-fonts/inter/Inter_500Medium.ttf'),
-          'Inter_600SemiBold': require('@expo-google-fonts/inter/Inter_600SemiBold.ttf'),
-          'Inter_700Bold': require('@expo-google-fonts/inter/Inter_700Bold.ttf'),
+          'SFProRounded_400Regular': require('../assets/fonts/SFProRounded_400Regular.ttf'),
+          'SFProRounded_500Medium': require('../assets/fonts/SFProRounded_500Medium.ttf'),  
+          'SFProRounded_600SemiBold': require('../assets/fonts/SFProRounded_600SemiBold.ttf'),
+          'SFProRounded_700Bold': require('../assets/fonts/SFProRounded_700Bold.ttf'),
         });
       } catch (error) {
         console.error('Error loading fonts:', error);
