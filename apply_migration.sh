@@ -2,10 +2,13 @@
 
 # Supabase project details
 SUPABASE_URL="https://rkexvjlqjbqktwwipfmi.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrZXh2amxxamJxa3R3d2lwZm1pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyODU0MjI2MCwiZXhwIjoyMDQ0MTE4MjYwfQ.WKyta3yNow4l-fNmRm7ruWRaFHdkhyWtfurQqHF2YAE"
 
 echo "This script will apply the migration to add device_id to your Supabase users table."
 echo "Using Supabase project: $SUPABASE_URL"
+
+# Prompt for the service role key (more secure than hardcoding)
+read -sp "Enter your Supabase service role key: " SUPABASE_SERVICE_ROLE_KEY
+echo ""
 
 # Construct the PSQL command
 MIGRATION_FILE="supabase/migrations/20240424_add_device_id_to_users.sql"

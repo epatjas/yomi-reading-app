@@ -7,8 +7,6 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
-console.log("OpenAI API Key:", process.env.EXPO_PUBLIC_OPENAI_API_KEY);
-
 let isProcessing = false;
 let isListening = false;
 let silenceTimer: NodeJS.Timeout | null = null;
