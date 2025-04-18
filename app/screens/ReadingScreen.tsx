@@ -22,9 +22,11 @@ import { syllabify } from '../../finnishHyphenation';
 import { Linking } from 'react-native';
 import Sparkle from '../../components/shared/SparkleEffect';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
 
-// Global variable to store the current recording
+// Global variables to handle recording state
 let globalRecording: Audio.Recording | null = null;
+let isAudioShutdown = false; // Add this flag to track global audio shutdown
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
@@ -209,9 +211,12 @@ export default function ReadingScreen() {
 
   // Trigger animation when celebration shows
   useEffect(() => {
+    // Milestone animation disabled per user feedback
+    /*
     if (showCelebration) {
       startCelebrationAnimation();
     }
+    */
   }, [showCelebration, startCelebrationAnimation]);
 
   // Add this effect to fetch the user's current energy when the screen loads
@@ -273,7 +278,7 @@ export default function ReadingScreen() {
     try {
       console.log('Starting Audio initialization...');
       
-      // Request permissions
+      // Request permissions first
       const permissionResponse = await Audio.requestPermissionsAsync();
       console.log('Permission response:', permissionResponse);
       
@@ -296,13 +301,16 @@ export default function ReadingScreen() {
         return false;
       }
 
-      // Basic audio configuration
+      // Simple audio configuration
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
 
-      console.log('Audio mode set successfully');
+      console.log('Audio initialized successfully');
       setHasPermission(true);
       setAudioInitialized(true);
       return true;
@@ -317,6 +325,44 @@ export default function ReadingScreen() {
       );
       return false;
     }
+  };
+
+  // Simplified reset function that doesn't use many promises
+  const resetAudioForRecording = async () => {
+    console.log('Resetting audio for recording...');
+    
+    // Clean up any existing recordings
+    if (recording) {
+      try {
+        await recording.stopAndUnloadAsync();
+        console.log('Stopped existing recording');
+      } catch (err) {
+        console.log('Error stopping recording:', err);
+      }
+      setRecording(null);
+    }
+    
+    if (globalRecording) {
+      try {
+        await globalRecording.stopAndUnloadAsync();
+        console.log('Stopped global recording');
+      } catch (err) {
+        console.log('Error stopping global recording:', err);
+      }
+      globalRecording = null;
+    }
+    
+    // Reset audio mode directly
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+    
+    console.log('Audio reset complete');
+    return true;
   };
 
   // Update monitorRecordingStatus to use the ref and clean up properly
@@ -356,45 +402,37 @@ export default function ReadingScreen() {
   const startRecording = async (): Promise<Audio.Recording | null> => {
     try {
       console.log('Preparing to record...');
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-
+      
+      // Clean up any existing recordings first 
+      // (this is redundant with resetAudioForRecording but serves as a safeguard)
       if (recording) {
-        console.log('Stopping existing recording...');
-        await recording.stopAndUnloadAsync();
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch (err) { /* ignore */ }
         setRecording(null);
       }
+      
+      if (globalRecording) {
+        try {
+          await globalRecording.stopAndUnloadAsync();
+        } catch (err) { /* ignore */ }
+        globalRecording = null;
+      }
 
+      // Create a new recording
       console.log('Creating new recording...');
       const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-        (status) => {
-          // Only log status updates while recording
-          if (status.isRecording) {
-            console.log('Recording status update:', status);
-          }
-        },
-        1000
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
-
-      // Start monitoring
-      await monitorRecordingStatus(newRecording);
-
+      
+      // Save a reference to the global recording
+      globalRecording = newRecording;
+      
       console.log('Recording started');
       return newRecording;
 
     } catch (err) {
       console.error('Failed to start recording:', err);
-      Alert.alert(
-        'Recording Error',
-        'Failed to start recording. Please try again.'
-      );
       return null;
     }
   };
@@ -453,34 +491,90 @@ export default function ReadingScreen() {
     }
   };
 
-  // Update handleStartReading with better error handling
+  // Add this function to help reset the recording state when encountering errors
+  const resetRecordingState = async () => {
+    try {
+      // Clear any existing recording
+      if (recording) {
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch (err) {
+          console.log('Error stopping recording during reset:', err);
+        }
+        setRecording(null);
+      }
+
+      // Clear global recording
+      if (globalRecording) {
+        try {
+          await globalRecording.stopAndUnloadAsync();
+        } catch (err) {
+          console.log('Error stopping global recording during reset:', err);
+        }
+        globalRecording = null;
+      }
+
+      // Reset audio mode - make sure to use valid configurations
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true, // Must be true if staysActiveInBackground is true
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      // Wait a moment
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Reinitialize audio
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      console.log('Recording state has been reset');
+    } catch (error) {
+      console.error('Error in resetRecordingState:', error);
+    }
+  };
+
+  // Update handleStartReading to use the full reset if needed
   const handleStartReading = async () => {
     try {
       setReadingState('preparing');
       
-      // Initialize audio
-      if (!audioInitialized) {
-        const audioReady = await initializeAudio();
-        if (!audioReady) {
-          throw new Error('Audio initialization failed');
+      // Reset and initialize audio
+      if (!hasPermission) {
+        const permissionGranted = await initializeAudio();
+        if (!permissionGranted) {
+          throw new Error('Audio permissions not granted');
         }
+      } else {
+        await resetAudioForRecording();
       }
-
-      // Show countdown or preparation UI
+      
+      // Show countdown UI for 2 seconds
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Start recording
+      // Create the recording
       const newRecording = await startRecording();
       if (!newRecording) {
-        throw new Error('Failed to create recording');
+        throw new Error('Failed to start recording');
       }
-
+      
+      // Update state
       setRecording(newRecording);
       setReadingState('recording');
       setIsReading(true);
       setStartTime(new Date());
       setIsRecordingInterfaceVisible(true);
       setIsRecordingUnloaded(false);
+      
+      // Start monitoring
+      monitorRecordingStatus(newRecording);
 
       // Start animation
       Animated.timing(recordingAnimation, {
@@ -492,7 +586,10 @@ export default function ReadingScreen() {
     } catch (error) {
       console.error('Error in handleStartReading:', error);
       setReadingState('initial');
-      Alert.alert('Error', 'Unable to start reading session. Please try again.');
+      Alert.alert(
+        'Recording Error',
+        'Unable to start reading session. Please try again.'
+      );
     }
   };
 
@@ -615,30 +712,6 @@ export default function ReadingScreen() {
     }
   };
 
-  // Add cleanup to useEffect
-  useEffect(() => {
-    return () => {
-      console.log('ReadingScreen cleanup - unmounting');
-      // Clear status monitoring interval
-      if (statusMonitorInterval.current) {
-        clearInterval(statusMonitorInterval.current);
-        statusMonitorInterval.current = null;
-      }
-      
-      if (recording && !isCleaningUp.current) {
-        try {
-          recording.stopAndUnloadAsync().catch(error => {
-            console.log('Cleanup unload error:', error);
-          });
-        } catch (error) {
-          console.log('Error during cleanup:', error);
-        }
-        setRecording(null);
-        setIsRecordingUnloaded(true);
-      }
-    };
-  }, [recording]);
-
   // Effect to handle recording when screen loses focus
   useFocusEffect(
     React.useCallback(() => {
@@ -650,50 +723,6 @@ export default function ReadingScreen() {
       };
     }, [recording, isRecordingUnloaded])
   );
-
-  // Function to force release existing recordings
-  const forceReleaseExistingRecordings = async () => {
-    console.log('Forcefully releasing any existing recordings');
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-      });
-      await new Promise(resolve => setTimeout(resolve, 200));
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-      });
-      console.log('Audio mode reset successfully');
-    } catch (error) {
-      console.error('Error resetting audio mode:', error);
-    }
-  };
-
-  // Function to reinitialize the Audio API
-  const reinitializeAudioAPI = async () => {
-    console.log('Reinitializing Audio API');
-    try {
-      await Audio.setIsEnabledAsync(false);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      await Audio.setIsEnabledAsync(true);
-      console.log('Audio API reinitialized successfully');
-    } catch (error) {
-      console.error('Failed to reinitialize Audio API:', error);
-    }
-  };
-
-  // Function to create a new recording object
-  const createRecordingObject = async () => {
-    console.log('Creating recording object');
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY
-    );
-    globalRecording = recording;
-    console.log('Recording object created successfully');
-  };
 
   // Function to handle back button press
   const handleBackPress = () => {
@@ -786,15 +815,35 @@ export default function ReadingScreen() {
     if (recording) {
       try {
         await recording.stopAndUnloadAsync();
+        
+        // Reset all recording-related state
+        setRecording(null);
+        setIsRecordingUnloaded(true);
         setIsReading(false);
+        setReadingState('initial');
         setIsRecordingInterfaceVisible(false);
+        setTotalElapsedTime(0);
+        setIsPaused(false);
+        
+        // Animate the UI
         Animated.timing(recordingAnimation, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }).start();
+        
+        // Clear any monitoring intervals
+        if (statusMonitorInterval.current) {
+          clearInterval(statusMonitorInterval.current);
+          statusMonitorInterval.current = null;
+        }
       } catch (error) {
         console.error('Error canceling recording:', error);
+        // Even if there's an error, still reset the UI
+        setRecording(null);
+        setIsReading(false);
+        setReadingState('initial');
+        setIsRecordingInterfaceVisible(false);
       }
     }
   };
@@ -836,6 +885,9 @@ export default function ReadingScreen() {
 
   // Separate effect for milestone celebrations
   useEffect(() => {
+    // Milestone celebration disabled per user feedback
+    // Code kept for future reference if needed
+    /*
     const combinedEnergy = totalEnergy + localEnergy;
     
     // Skip check if this is the initial load
@@ -865,6 +917,7 @@ export default function ReadingScreen() {
 
     // Update last checked energy
     setLastCheckedEnergy(combinedEnergy);
+    */
   }, [totalEnergy, localEnergy]); // Dependencies remain the same
 
   const toggleTextCase = () => {
@@ -1035,6 +1088,50 @@ export default function ReadingScreen() {
   // Create an array of milestone values
   const MILESTONES = [20, 40, 60, 80] as const;
 
+  // Add a proper component cleanup effect that doesn't disable Audio
+  useEffect(() => {
+    console.log('ReadingScreen mounting');
+    
+    // Make sure audio API is enabled when component mounts
+    if (isAudioShutdown) {
+      Audio.setIsEnabledAsync(true).catch(console.error);
+      isAudioShutdown = false;
+    }
+    
+    // Return a cleanup function
+    return () => {
+      console.log('ReadingScreen unmounting - running cleanup');
+      
+      // Prevent further operations during cleanup
+      isCleaningUp.current = true;
+      
+      // Clear intervals
+      if (statusMonitorInterval.current) {
+        clearInterval(statusMonitorInterval.current);
+        statusMonitorInterval.current = null;
+      }
+      
+      // Clean up recordings but DON'T disable the Audio API
+      try {
+        // Clean up component recording
+        if (recording) {
+          console.log('Cleaning up component recording');
+          recording.stopAndUnloadAsync().catch(console.error);
+          setRecording(null);
+        }
+        
+        // Clean up global recording
+        if (globalRecording) {
+          console.log('Cleaning up global recording');
+          globalRecording.stopAndUnloadAsync().catch(console.error);
+          globalRecording = null;
+        }
+      } catch (error) {
+        console.log('Error during cleanup:', error);
+      }
+    };
+  }, []); // Empty deps = mount/unmount only
+
   // Render the Reading Screen UI
   if (isLoading) {
     return (
@@ -1070,16 +1167,25 @@ export default function ReadingScreen() {
           />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          <Text style={[styles.content, { 
-            fontSize, 
-            textTransform: textCase === 'uppercase' ? 'uppercase' : 'none' 
-          }]}>
-            {isHyphenationEnabled 
-              ? syllabifyText(currentStory?.content || '')
-              : currentStory?.content}
-          </Text>
-        </ScrollView>
+        <View style={styles.scrollViewWrapper}>
+          <ScrollView contentContainerStyle={styles.scrollViewContent}>
+            <Text style={[styles.content, { 
+              fontSize, 
+              textTransform: textCase === 'uppercase' ? 'uppercase' : 'none' 
+            }]}>
+              {isHyphenationEnabled 
+                ? syllabifyText(currentStory?.content || '')
+                : currentStory?.content}
+            </Text>
+          </ScrollView>
+        </View>
+
+        {/* Add full-screen bottom gradient */}
+        <LinearGradient
+          colors={['rgba(21, 21, 22, 0)', 'rgba(21, 21, 22, 0.9)', 'rgba(21, 21, 22, 1)']}
+          locations={[0, 0.5, 0.85]}
+          style={styles.fullScreenGradient}
+        />
 
         <View style={styles.bottomContainer}>
           {readingState === 'initial' && (
@@ -1087,14 +1193,14 @@ export default function ReadingScreen() {
               style={styles.readToYomiButton}
               onPress={handleStartReading}
             >
-              <Mic size={24} color={colors.text} />
+              <Mic size={24} color={colors.buttonTextDark} />
               <Text style={styles.readToYomiButtonText}>{t('readingScreen.readToYomi')}</Text>
             </TouchableOpacity>
           )}
           
           {readingState === 'preparing' && (
             <View style={styles.preparingContainer}>
-              <Text style={styles.preparingText}>{t('readingScreen.getReady')}</Text>
+              <ActivityIndicator size="large" color={colors.primary} style={styles.preparingSpinner} />
             </View>
           )}
           
@@ -1140,55 +1246,6 @@ export default function ReadingScreen() {
             </Animated.View>
           )}
         </View>
-
-        {showCelebration && (
-          <View style={styles.celebrationOverlay}>
-            <Text style={styles.celebrationText}>
-              {getMilestoneMessage(currentMilestone || 0, t)}
-            </Text>
-            
-            <Animated.View 
-              style={[
-                styles.celebrationYomiContainer,
-                {
-                  transform: [
-                    { scale: yomiScaleAnim },
-                    { rotate: yomiRotateAnim.interpolate({
-                      inputRange: [-1, 1],
-                      outputRange: ['-15deg', '15deg']
-                    }) },
-                  ]
-                }
-              ]}
-            >
-              <View style={styles.yomiCircleBackground} />
-              <Image 
-                source={getYomiImage(currentMilestone || 0)}
-                style={styles.celebrationYomi}
-              />
-            </Animated.View>
-
-            {sparkleAnims.map((anim, i) => (
-              <Animated.View
-                key={i}
-                style={[
-                  styles.sparkle,
-                  {
-                    transform: [
-                      { translateX: anim.position.x },
-                      { translateY: anim.position.y },
-                      { scale: anim.scale },
-                      { rotate: `${Math.random() * 360}deg` },
-                    ],
-                    opacity: anim.opacity,
-                  }
-                ]}
-              >
-                <View style={styles.sparkleSquare} />
-              </Animated.View>
-            ))}
-          </View>
-        )}
       </View>
 
       <Modal
@@ -1237,13 +1294,19 @@ export default function ReadingScreen() {
                   style={[styles.caseButton, textCase === 'normal' && styles.caseButtonActive]}
                   onPress={() => setTextCase('normal')}
                 >
-                  <Text style={styles.caseButtonText}>Aa</Text>
+                  <Text style={[
+                    styles.caseButtonText,
+                    textCase === 'normal' && styles.caseButtonTextActive
+                  ]}>Aa</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.caseButton, textCase === 'uppercase' && styles.caseButtonActive]}
                   onPress={() => setTextCase('uppercase')}
                 >
-                  <Text style={styles.caseButtonText}>AA</Text>
+                  <Text style={[
+                    styles.caseButtonText,
+                    textCase === 'uppercase' && styles.caseButtonTextActive
+                  ]}>AA</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1279,18 +1342,25 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
+    paddingTop: 16,
+    paddingBottom: 0,
+    paddingHorizontal: 0,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: layout.spacing,
+    height: 44,
+    paddingHorizontal: 8,
   },
   headerButton: {
-    paddingBottom: 8,
-    paddingLeft: 0,
-    paddingRight: 0,
+    padding: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 36,
+    width: 36,
   },
   title: {
     fontFamily: fonts.medium,
@@ -1301,7 +1371,8 @@ const styles = StyleSheet.create({
   },
   energyDisplayContainer: {
     marginBottom: layout.spacing,
-    height: 48,
+    minHeight: 60,
+    paddingHorizontal: 16,
   },
   contentContainer: {
     flex: 1,
@@ -1311,6 +1382,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.text,
     lineHeight: 40,
+    backgroundColor: colors.background,
   },
   transcriptContainer: {
     marginTop: layout.spacing,
@@ -1357,7 +1429,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   readToYomiButtonText: {
-    color: colors.text,
+    color: colors.buttonTextDark,
     fontFamily: fonts.medium,
     fontSize: 18,
     marginLeft: 12,
@@ -1368,8 +1440,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderRadius: 30,
-    borderWidth: 1,
-    borderColor: colors.stroke,
     overflow: 'hidden',
     backgroundColor: colors.background02,
     shadowColor: '#000000',
@@ -1440,7 +1510,11 @@ const styles = StyleSheet.create({
   },
   caseButtonText: {
     fontSize: 18,
-    color: colors.text,
+    color: colors.textSecondary,
+  },
+  caseButtonTextActive: {
+    fontSize: 18,
+    color: colors.buttonTextDark,
   },
   divider: {
     height: 1,
@@ -1465,7 +1539,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background02, 
   },
   scrollViewContent: {
-    paddingBottom: 100, 
+    paddingBottom: 160,
+    paddingHorizontal: 16,
+    backgroundColor: colors.background,
   },
   loadingText: {
     fontFamily: fonts.medium,
@@ -1475,10 +1551,12 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: 0,
-    left: 16,
-    right: 16,
-    zIndex: 1000,
+    bottom: 30,
+    left: 0,
+    right: 0,
+    zIndex: 10, // Above the gradient
+    paddingHorizontal: 16,
+    backgroundColor: 'transparent',
   },
   recordingInterface: {
     flexDirection: 'row',
@@ -1486,9 +1564,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 12,
     height: 60,
-    backgroundColor: colors.background,
+    backgroundColor: colors.background02,
     borderRadius: 30,
-
   },
   recordingControls: {
     flexDirection: 'row',
@@ -1526,15 +1603,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   preparingContainer: {
-    flex: 1,
+    width: '100%',
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
-  preparingText: {
-    fontFamily: fonts.medium,
-    fontSize: 18,
-    color: colors.text,
-    textAlign: 'center',
+  preparingSpinner: {
+    marginTop: 16,
   },
   celebrationOverlay: {
     position: 'absolute',
@@ -1585,5 +1661,17 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: colors.yellowDark,
     borderRadius: 1,
+  },
+  scrollViewWrapper: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  fullScreenGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -50,
+    height: 200,
+    zIndex: 5,
   },
 });

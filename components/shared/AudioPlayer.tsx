@@ -104,9 +104,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
     <View style={styles.container}>
       <TouchableOpacity onPress={playPauseSound} style={styles.playPauseButton}>
         {isPlaying ? (
-          <Pause color={colors.text} size={20} />
+          <Pause color={colors.text} size={16} />
         ) : (
-          <Play color={colors.text} size={20} />
+          <Play color={colors.text} size={16} />
         )}
       </TouchableOpacity>
       <View style={styles.progressContainer}>
@@ -147,20 +147,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background02,
     borderRadius: 12,
     padding: 8,
-    borderWidth: 1,
-    borderColor: colors.stroke,
     shadowColor: '#111212',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5, // for Android
-
   },
   playPauseButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.background,
+    backgroundColor: colors.background01,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,

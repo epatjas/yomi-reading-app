@@ -1,35 +1,35 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
-  primary: 'hsl(233, 92%, 64%)',      // Primary color
-  background: 'hsl(240, 10%, 8%)',    // Dark background
-  background01: 'hsl(240, 10%, 8%)',  // Dark background (alias)
-  background02: 'hsl(240, 13%, 10%)', // Slightly lighter dark background
+  primary: 'hsl(217, 86%, 78%)',    // Updated primary color (light blue)
+  background: 'hsl(240, 3%, 6%)',    // Dark background
+  background01: 'hsl(220, 6%, 10%)',  // Dark background (alias)
+  background02: 'hsl(0, 0%, 12%)', // Slightly lighter dark background
   yellowLight: 'hsl(46, 100%, 78%)',   // Light yellow
   yellowMedium: 'hsl(51, 60%, 55%)',  // Medium yellow
   yellowDark: 'hsl(51, 75%, 40%)',    // Dark yellow
   text: 'hsl(240, 100%, 97%)',        // Light text color
   textSecondary: 'hsl(0, 0%, 58%)',   // Secondary text color
-  stroke: 'hsl(236, 15%, 20%)',       // Stroke color
-  buttonText: 'hsl(240, 100%, 97%)',  // Button text color (same as text)
+  stroke: 'hsl(230, 6%, 19%)',       // Stroke color
+  buttonText: 'hsl(0, 0%, 10%)',      // Updated button text color to black (HSL)
   mint: 'hsl(156, 48%, 63%)',        // Mint green
   green: 'hsl(83, 37%, 85%)',        // Green
   greenDark: 'hsl(92, 21%, 66%)',    // Darker green
   lavender: 'hsl(237, 70%, 81%)',    // Lavender
   lavenderDark: 'hsl(237, 68%, 76%)', // Darker lavender
   error: 'hsl(368, 63%, 51%)',
-  correct: '#72CDA8',                // Correct answer color
-  incorrect: '#EE5775',              // Incorrect answer color
-  buttonTextDark: '#1A1A1A', 
+  correct: 'hsl(150, 43%, 63%)',     // Correct answer color
+  incorrect: 'hsl(348, 79%, 63%)',   // Incorrect answer color
+  buttonTextDark: 'hsl(0, 0%, 10%)', 
   pink: 'hsl(11, 33%, 88%)',
   pinkDark: 'hsl(11, 49%, 81%)',
 };
 
 export const fonts = {
-  regular: 'Inter_400Regular', 
-  medium: 'Inter_500Medium',    
-  semiBold: 'Inter_600SemiBold', 
-  bold: 'Inter_700Bold',        
+  regular: 'SFProRounded_400Regular', 
+  medium: 'SFProRounded_500Medium',    
+  semiBold: 'SFProRounded_600SemiBold', 
+  bold: 'SFProRounded_700Bold',        
 };
 
 export const globalStyles = StyleSheet.create({

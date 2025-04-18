@@ -127,7 +127,10 @@ export default function LibraryScreen() {
             setSelectedDifficulty(selectedDifficulty === difficultyValue ? null : difficultyValue);
           }}
         >
-          <Text style={styles.filterButtonText}>
+          <Text style={[
+            styles.filterButtonText,
+            selectedDifficulty === getDifficultyKey(difficulty) && styles.filterButtonTextActive
+          ]}>
             {difficulty === t('library.easy') && '☆ '}
             {difficulty === t('library.medium') && '☆☆ '}
             {difficulty === t('library.hard') && '☆☆☆ '}
@@ -180,7 +183,6 @@ export default function LibraryScreen() {
             <ArrowLeft size={24} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>{t('library.title')}</Text>
-          <View style={styles.headerRightPlaceholder} />
         </View>
 
         {/* New title */}
@@ -207,33 +209,35 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: layout.padding,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: layout.spacing * 2,
+    position: 'relative',
+    marginBottom: layout.spacing,
+    height: 20,
   },
   backButton: {
-    padding: 8, // Add some padding for easier tapping
+    padding: 0,
+    zIndex: 1,
   },
   headerTitle: {
     fontFamily: fonts.medium,
     fontSize: 18,
     color: colors.text,
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     textAlign: 'center',
   },
-  headerRightPlaceholder: {
-    width: 40, // Match the width of the back button for centering
-  },
   pageTitle: {
-    fontFamily: fonts.medium,
+    fontWeight: 'medium',
     fontSize: 20,
     color: colors.text,
-    marginBottom: layout.spacing * 2,
-    textAlign: 'left',
+    marginBottom: 24,
+    marginTop: 16,
+    textAlign: 'center',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -252,6 +256,10 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontFamily: fonts.medium,
     color: colors.text,
+  },
+  filterButtonTextActive: {
+    fontFamily: fonts.medium,
+    color: colors.buttonTextDark,
   },
   bookList: {
     justifyContent: 'space-between',

@@ -46,7 +46,7 @@ export default function Index() {
           if (profiles.length === 0) {
             console.log('No profiles found, navigating to create-profile');
             // Using correct path format for Expo Router
-            router.replace("/screens/create-profile");
+            router.replace("/screens/welcome");
           } else {
             console.log('Profiles found, navigating to select-profile');
             // Using correct path format for Expo Router
@@ -58,7 +58,7 @@ export default function Index() {
           // Fallback navigation
           if (profiles.length === 0) {
             // Try alternative routing as a fallback
-            router.replace("/screens/create-profile");
+            router.replace("/screens/welcome");
           } else {
             router.replace("/(tabs)");
           }
@@ -68,7 +68,7 @@ export default function Index() {
         
         // Fallback to create-profile as a last resort
         try {
-          router.replace("/screens/create-profile");
+          router.replace("/screens/welcome");
         } catch (e) {
           console.error('Critical navigation error:', e);
           Alert.alert(
