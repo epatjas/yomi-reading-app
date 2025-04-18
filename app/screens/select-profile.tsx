@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, FlatList, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { getUserProfiles } from '../../services/userService';
+import { getUserProfiles, updateUserDeviceId } from '../../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,7 @@ type Profile = {
   id: string;
   username: string;
   avatar_url: string;
+  device_id?: string;
 };
 
 const { width, height } = Dimensions.get('window');
@@ -21,15 +22,56 @@ export default function SelectProfileScreen() {
   const router = useRouter();
   const { t } = useTranslation('common');
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    loadProfiles();
+    // Generate a device ID in the same way as in the create-profile screen
+    const generateDeviceId = () => {
+      const generatedDeviceId = `${Platform.OS}-${Platform.Version}-${Math.random().toString(36).substring(2, 10)}`;
+      setDeviceId(generatedDeviceId);
+      return generatedDeviceId;
+    };
+
+    // Try to load the device ID from storage first
+    const getDeviceId = async () => {
+      try {
+        let id = await AsyncStorage.getItem('deviceId');
+        
+        if (!id) {
+          // If no device ID is stored, generate a new one and save it
+          id = generateDeviceId();
+          await AsyncStorage.setItem('deviceId', id);
+        }
+        
+        setDeviceId(id);
+        return id;
+      } catch (error) {
+        console.error('Error getting device ID:', error);
+        // Fallback to generating a new ID
+        return generateDeviceId();
+      }
+    };
+
+    // Load profiles with the device ID
+    const initializeScreen = async () => {
+      const id = await getDeviceId();
+      loadProfiles(id);
+    };
+
+    initializeScreen();
   }, []);
 
-  const loadProfiles = async () => {
+  const loadProfiles = async (id?: string) => {
     try {
-      const userProfiles = await getUserProfiles();
-      setProfiles(userProfiles);
+      if (!id) {
+        console.warn('No device ID available, cannot load profiles');
+        return;
+      }
+      
+      // Only load profiles for this device
+      const deviceProfiles = await getUserProfiles(id);
+      console.log(`Found ${deviceProfiles.length} profile(s) for this device`);
+      setProfiles(deviceProfiles);
     } catch (error) {
       console.error(t('errors.loadingProfiles'), error);
     }
@@ -38,6 +80,13 @@ export default function SelectProfileScreen() {
   const handleSelectProfile = async (profile: Profile) => {
     try {
       await AsyncStorage.setItem('userId', profile.id);
+      
+      // If this profile doesn't have a device ID, update it with the current device ID
+      if ((profile.device_id === null || profile.device_id === undefined) && deviceId) {
+        console.log('Updating profile with device ID:', deviceId);
+        await updateUserDeviceId(profile.id, deviceId);
+      }
+      
       router.replace({
         pathname: '/(tabs)',
         params: { userId: profile.id }
@@ -74,6 +123,7 @@ export default function SelectProfileScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>{t('selectProfile.title')}</Text>
+        
         <FlatList
           data={[...profiles, 'add']}
           renderItem={renderItem}
