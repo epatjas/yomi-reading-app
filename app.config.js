@@ -13,12 +13,12 @@ export default ({ config }) => ({
 
   android: {
     package: "com.elinapatjas.yomi",
-    versionCode: 1
+    versionCode: 2
   },
 
   ios: {
     bundleIdentifier: "com.elinapatjas.yomi",
-    buildNumber: "1",
+    buildNumber: "2",
     supportsTablet: true,
     config: {
       usesNonExemptEncryption: false
