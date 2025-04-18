@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, TextInput, Dimensions, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Image, TextInput, Dimensions, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, layout } from '../styles/globalStyles';
 import ChooseAvatar from '../../components/shared/choose-avatar';
@@ -28,6 +28,34 @@ export default function CreateProfileScreen() {
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [username, setUsername] = useState('');
+  const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    // Get device ID when component mounts
+    const getDeviceInfo = async () => {
+      try {
+        // First check if device ID is already stored
+        let storedDeviceId = await AsyncStorage.getItem('deviceId');
+        
+        if (!storedDeviceId) {
+          // If not stored, generate a new one
+          storedDeviceId = `${Platform.OS}-${Platform.Version}-${Math.random().toString(36).substring(2, 10)}`;
+          // Store it for future use
+          await AsyncStorage.setItem('deviceId', storedDeviceId);
+        }
+        
+        setDeviceId(storedDeviceId);
+        console.log('Device ID:', storedDeviceId);
+      } catch (error) {
+        console.error('Error getting device info:', error);
+        // Fallback to a new ID if there's an error
+        const fallbackId = `${Platform.OS}-${Platform.Version}-${Math.random().toString(36).substring(2, 10)}`;
+        setDeviceId(fallbackId);
+      }
+    };
+
+    getDeviceInfo();
+  }, []);
 
   const handleOpenAvatarModal = () => {
     setIsAvatarModalVisible(true);
@@ -50,8 +78,8 @@ export default function CreateProfileScreen() {
 
     try {
       const avatarUrl = avatars[selectedAvatar].uri;
-      console.log('Creating profile with:', { username, avatarUrl });
-      const result = await createUserProfile(username, avatarUrl);
+      console.log('Creating profile with:', { username, avatarUrl, deviceId });
+      const result = await createUserProfile(username, avatarUrl, deviceId);
       
       console.log('Create profile result:', result);
 
