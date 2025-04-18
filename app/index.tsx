@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { globalStyles, colors } from './styles/globalStyles';
@@ -26,22 +26,56 @@ export default function Index() {
         await new Promise(resolve => setTimeout(resolve, 5000));
         console.log('Delay finished, checking profiles...');
 
-        const profiles = await getUserProfiles();
-        console.log('Profiles fetched:', profiles);
+        // Get or generate the device ID first
+        let deviceId = await AsyncStorage.getItem('deviceId');
         
-        if (profiles.length === 0) {
-          console.log('No profiles found, navigating to create-profile');
-          // Using correct path format for Expo Router
-          router.replace("/screens/create-profile");
+        if (!deviceId) {
+          // If no device ID is stored, generate a new one and save it
+          deviceId = `${Platform.OS}-${Platform.Version}-${Math.random().toString(36).substring(2, 10)}`;
+          await AsyncStorage.setItem('deviceId', deviceId);
+          console.log('Generated new device ID:', deviceId);
         } else {
-          console.log('Profiles found, navigating to select-profile');
-          // Using correct path format for Expo Router
-          router.replace("/screens/select-profile");
+          console.log('Using existing device ID:', deviceId);
+        }
+        
+        // Now fetch only profiles for this device
+        const profiles = await getUserProfiles(deviceId);
+        console.log(`Found ${profiles.length} profile(s) for this device`);
+        
+        try {
+          if (profiles.length === 0) {
+            console.log('No profiles found, navigating to create-profile');
+            // Using correct path format for Expo Router
+            router.replace("/screens/create-profile");
+          } else {
+            console.log('Profiles found, navigating to select-profile');
+            // Using correct path format for Expo Router
+            router.replace("/screens/select-profile");
+          }
+        } catch (routeError) {
+          console.error('Navigation error:', routeError);
+          
+          // Fallback navigation
+          if (profiles.length === 0) {
+            // Try alternative routing as a fallback
+            router.replace("/screens/create-profile");
+          } else {
+            router.replace("/(tabs)");
+          }
         }
       } catch (error) {
         console.error('Error checking profiles:', error);
-        // Using correct path format for Expo Router
-        router.replace("/screens/create-profile");
+        
+        // Fallback to create-profile as a last resort
+        try {
+          router.replace("/screens/create-profile");
+        } catch (e) {
+          console.error('Critical navigation error:', e);
+          Alert.alert(
+            "Navigation Error",
+            "There was a problem starting the app. Please restart the application."
+          );
+        }
       }
     };
 

@@ -10,10 +10,11 @@ export interface User {
   max_energy: number;
   reading_points: number;
   evolution_stage: string;
+  device_id?: string;
 }
 
-export async function createUserProfile(username: string, avatarUrl: string): Promise<User | null> {
-  console.log('Attempting to create profile:', { username, avatarUrl });
+export async function createUserProfile(username: string, avatarUrl: string, deviceId?: string): Promise<User | null> {
+  console.log('Attempting to create profile:', { username, avatarUrl, deviceId });
   try {
     const { data, error } = await supabase
       .from('users')
@@ -24,7 +25,8 @@ export async function createUserProfile(username: string, avatarUrl: string): Pr
         max_energy: 100,
         reading_points: 0,
         evolution_stage: 'initial',
-        last_energy_update: new Date().toISOString()
+        last_energy_update: new Date().toISOString(),
+        device_id: deviceId
       })
       .select()
       .single();
@@ -82,15 +84,25 @@ export async function updateUserProfile(userId: string, updates: Partial<User>):
 }
 
 // Add this function to userService.ts
-export async function getUserProfiles(): Promise<User[]> {
+export async function getUserProfiles(deviceId?: string): Promise<User[]> {
   try {
-    const { data, error } = await supabase
+    // Create a query to select all users
+    let query = supabase
       .from('users')
-      .select('*')
-      .order('username');
+      .select('*');
+    
+    // If a deviceId is provided, filter by it
+    if (deviceId) {
+      console.log('Filtering profiles by device ID:', deviceId);
+      query = query.eq('device_id', deviceId);
+    }
+    
+    // Complete the query with ordering
+    const { data, error } = await query.order('username');
 
     if (error) throw error;
-
+    
+    console.log(`Found ${data?.length || 0} profile(s)${deviceId ? ' for device ID: ' + deviceId : ''}`);
     return data || [];
   } catch (error) {
     console.error('Error fetching user profiles:', error);
@@ -444,5 +456,21 @@ export async function saveReadingSession(
   } catch (error) {
     console.error('Error saving reading session:', error);
     throw error;
+  }
+}
+
+export async function updateUserDeviceId(userId: string, deviceId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ device_id: deviceId })
+      .eq('id', userId);
+
+    if (error) throw error;
+    console.log(`Updated device ID for user ${userId} to ${deviceId}`);
+    return true;
+  } catch (error) {
+    console.error('Error updating user device ID:', error);
+    return false;
   }
 }
