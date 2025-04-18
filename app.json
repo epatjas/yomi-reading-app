@@ -11,13 +11,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.elinapatjas.yomi",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "icon": "./assets/images/icon.png",
       "icons": {
         "app": "./assets/images/icon.png"
       },
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record audio while reading.",
+        "NSMicrophoneUsageDescription": "Yomi needs microphone access to record your voice when you read stories aloud. This helps track your reading progress and improve your reading skills.",
         "UIBackgroundModes": ["audio"]
       }
     },
