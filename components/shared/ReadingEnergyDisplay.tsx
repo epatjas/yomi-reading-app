@@ -7,6 +7,7 @@ import { ENERGY_GAIN_AMOUNT, MAX_ENERGY } from '../../services/yomiEnergyService
 import Sparkle from './SparkleEffect';
 import { Music } from 'lucide-react-native';
 import { Audio } from 'expo-av';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 const SHAPE_SIZE = 48;
@@ -27,18 +28,18 @@ export const getYomiImage = (energy: number) => {
   return require('../../assets/images/yomi-very-low-energy.png');
 };
 
-const getMilestoneMessage = (milestone: number) => {
+const getMilestoneMessage = (milestone: number, t: any) => {
   switch (milestone) {
     case 20:
-      return "Great start! Keep going!";
+      return t('readingScreen.milestone20');
     case 40:
-      return "You're doing great!";
+      return t('readingScreen.milestone40');
     case 60:
-      return "Amazing! Keep on reading!";
+      return t('readingScreen.milestone60');
     case 80:
-      return "Incredible reading streak!";
+      return t('readingScreen.milestone80');
     default:
-      return "Amazing! Keep on reading!";
+      return t('readingScreen.milestoneDefault');
   }
 };
 
@@ -49,6 +50,7 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
   isPaused,
   readingState,
 }) => {
+  const { t } = useTranslation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const fillAnim = useRef(new Animated.Value(energy)).current;
   const sparkleAnims = useRef(Array(5).fill(0).map(() => ({
@@ -275,7 +277,7 @@ const ReadingEnergyDisplay: React.FC<ReadingEnergyDisplayProps> = ({
         <View style={styles.initialStateContainer}>
           <View style={styles.speechBubble}>
             <Text style={styles.initialStateText}>
-              Tap the mic when you're ready to read!
+              {t('components.readingEnergyDisplay.readyToRead')}
             </Text>
           </View>
         </View>

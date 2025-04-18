@@ -7,6 +7,7 @@ import YomiLogo from '../assets/images/yomi-logo.svg';
 import BackgroundShape from '../assets/images/background-shape.svg';
 import { getUserProfiles } from '../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadSavedLanguage } from '../translation';
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,6 +19,9 @@ export default function Index() {
     console.log('Starting splash screen effect');
     const checkProfilesAndNavigate = async () => {
       try {
+        // Load language preferences first thing on app startup
+        await loadSavedLanguage();
+        
         console.log('Starting delay...');
         await new Promise(resolve => setTimeout(resolve, 5000));
         console.log('Delay finished, checking profiles...');
@@ -27,14 +31,17 @@ export default function Index() {
         
         if (profiles.length === 0) {
           console.log('No profiles found, navigating to create-profile');
-          router.replace('/screens/create-profile');
+          // Using correct path format for Expo Router
+          router.replace("/screens/create-profile");
         } else {
           console.log('Profiles found, navigating to select-profile');
-          router.replace('/screens/select-profile');
+          // Using correct path format for Expo Router
+          router.replace("/screens/select-profile");
         }
       } catch (error) {
         console.error('Error checking profiles:', error);
-        router.replace('/screens/create-profile');
+        // Using correct path format for Expo Router
+        router.replace("/screens/create-profile");
       }
     };
 

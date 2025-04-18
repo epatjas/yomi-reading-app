@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, SafeAreaView, Pressable, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { BookCheck, History, ArrowLeft, LineChart, Edit2, ArrowLeftRight, Play, Pause, Timer } from 'lucide-react-native';
+import { BookCheck, History, ArrowLeft, LineChart, Edit2, ArrowLeftRight, Play, Pause, Timer, Globe } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import ChooseAvatar from '../../components/shared/choose-avatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,8 @@ import { ReadingSession } from '../../services/readingSessionsHelpers';
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../services/supabase';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/shared/LanguageSwitcher';
 
 // Add this interface at the top of your file
 interface UserProfile {
@@ -49,6 +51,7 @@ const formatDuration = (durationSeconds: number | undefined): string => {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(0);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -349,7 +352,7 @@ export default function ProfileScreen() {
             <Pressable onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={24} color={colors.text} />
             </Pressable>
-            <Text style={styles.headerTitle}>Profile</Text>
+            <Text style={styles.headerTitle}>{t('profile.title', 'Profile')}</Text>
             <Pressable onPress={() => router.push('/screens/select-profile')} style={styles.switchProfileButton}>
               <ArrowLeftRight size={24} color={colors.text} />
             </Pressable>
@@ -357,7 +360,7 @@ export default function ProfileScreen() {
 
           <View style={styles.greetingContainer}>
             <Text style={styles.greeting}>
-              Hei {userName}!
+              {t('profile.greeting', 'Hei')} {userName}!
             </Text>
           </View>
 
@@ -371,9 +374,20 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
 
+          {/* Language settings section - title and switcher on same row */}
+          <View style={styles.settingsSectionContainer}>
+            <View style={styles.settingsHeader}>
+              <View style={styles.settingsTitleContainer}>
+                <Globe size={16} color={colors.text} style={styles.settingsIcon} />
+                <Text style={styles.settingsTitle}>{t('profile.language', 'Language')}</Text>
+              </View>
+              <LanguageSwitcher />
+            </View>
+          </View>
+
           <View style={styles.statsTitleContainer}>
             <LineChart size={24} color={colors.text} style={styles.statsIcon} />
-            <Text style={styles.statsTitle}>Statistics</Text>
+            <Text style={styles.statsTitle}>{t('profile.statistics', 'Statistics')}</Text>
           </View>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
@@ -382,7 +396,7 @@ export default function ProfileScreen() {
               </View>
               <View>
                 <Text style={styles.statValue}>{totalReadingPoints}</Text>
-                <Text style={styles.statLabel}>Reading points</Text>
+                <Text style={styles.statLabel}>{t('profile.readingPoints', 'Reading points')}</Text>
               </View>
             </View>
             <View style={styles.statItem}>
@@ -391,14 +405,14 @@ export default function ProfileScreen() {
               </View>
               <View>
                 <Text style={styles.statValue}>{formatReadingTime(totalReadingTime)}</Text>
-                <Text style={styles.statLabel}>Time spent reading</Text>
+                <Text style={styles.statLabel}>{t('profile.timeSpentReading', 'Time spent reading')}</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.historyTitleContainer}>
             <History size={24} color={colors.text} style={styles.historyIcon} />
-            <Text style={styles.historyTitle}>Reading history</Text>
+            <Text style={styles.historyTitle}>{t('profile.readingHistory', 'Reading history')}</Text>
           </View>
           <FlatList
             data={readingHistory}
@@ -475,6 +489,27 @@ const styles = StyleSheet.create({
     borderColor: colors.stroke,
     borderRadius: 20,
     padding: 8,
+  },
+  // Updated styles for language section
+  settingsSectionContainer: {
+    marginBottom: layout.spacing * 2,
+  },
+  settingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  settingsTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingsIcon: {
+    marginRight: layout.spacing / 2,
+  },
+  settingsTitle: {
+    fontFamily: fonts.medium,
+    fontSize: 16,
+    color: colors.text,
   },
   statsTitleContainer: {
     flexDirection: 'row',

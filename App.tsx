@@ -8,6 +8,8 @@ import {
 } from '@expo-google-fonts/inter';
 import { Slot } from 'expo-router';
 import ErrorBoundary from './components/shared/ErrorBoundary';
+// Import translation configuration
+import './translation';
 
 export default function App() {
   const [fontsLoaded] = useFonts({

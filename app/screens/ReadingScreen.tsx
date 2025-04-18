@@ -21,6 +21,7 @@ import { createClient } from '@supabase/supabase-js';
 import { syllabify } from '../../finnishHyphenation';
 import { Linking } from 'react-native';
 import Sparkle from '../../components/shared/SparkleEffect';
+import { useTranslation } from 'react-i18next';
 
 // Global variable to store the current recording
 let globalRecording: Audio.Recording | null = null;
@@ -29,24 +30,27 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
 
 // Add milestone message helper
-const getMilestoneMessage = (milestone: number) => {
+const getMilestoneMessage = (milestone: number, t: any) => {
   switch (milestone) {
     case 20:
-      return "Great start! Keep going!";
+      return t('readingScreen.milestone20');
     case 40:
-      return "You're doing great!";
+      return t('readingScreen.milestone40');
     case 60:
-      return "Amazing! Keep on reading!";
+      return t('readingScreen.milestone60');
     case 80:
-      return "Incredible reading streak!";
+      return t('readingScreen.milestone80');
     default:
-      return "Amazing! Keep on reading!";
+      return t('readingScreen.milestoneDefault');
   }
 };
 
 // This section initializes the component and sets up necessary state variables for managing the reading interface.
 export default function ReadingScreen() {
   console.log('ReadingScreen attempting to mount');
+  
+  // Initialize translation
+  const { t } = useTranslation();
   
   // Move router declaration to the top
   const router = useRouter();
@@ -59,11 +63,11 @@ export default function ReadingScreen() {
   useEffect(() => {
     if (!params.userId || !params.storyId) {
       console.error('Missing required params:', { params });
-      Alert.alert('Error', 'Missing required parameters', [
-        { text: 'OK', onPress: () => router.back() }
+      Alert.alert(t('common.error'), t('readingScreen.missingParams'), [
+        { text: t('common.ok'), onPress: () => router.back() }
       ]);
     }
-  }, [params.userId, params.storyId, router]);
+  }, [params.userId, params.storyId, router, t]);
 
   // Add cleanup and mounting tracking
   useEffect(() => {
@@ -1036,7 +1040,7 @@ export default function ReadingScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
-          <Text style={[styles.loadingText, { color: colors.text }]}>Loading story...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>{t('readingScreen.loadingStory')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -1050,7 +1054,7 @@ export default function ReadingScreen() {
           <TouchableOpacity onPress={handleBackPress} style={styles.headerButton}>
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>{currentStory ? currentStory.title : 'Loading...'}</Text>
+          <Text style={styles.title}>{currentStory ? currentStory.title : t('readingScreen.loading')}</Text>
           <TouchableOpacity onPress={() => setIsSettingsVisible(true)} style={styles.headerButton}>
             <MoreVertical size={24} color={colors.text} />
           </TouchableOpacity>
@@ -1084,13 +1088,13 @@ export default function ReadingScreen() {
               onPress={handleStartReading}
             >
               <Mic size={24} color={colors.text} />
-              <Text style={styles.readToYomiButtonText}>Lue Yomille</Text>
+              <Text style={styles.readToYomiButtonText}>{t('readingScreen.readToYomi')}</Text>
             </TouchableOpacity>
           )}
           
           {readingState === 'preparing' && (
             <View style={styles.preparingContainer}>
-              <Text style={styles.preparingText}>Get ready to read...</Text>
+              <Text style={styles.preparingText}>{t('readingScreen.getReady')}</Text>
             </View>
           )}
           
@@ -1140,7 +1144,7 @@ export default function ReadingScreen() {
         {showCelebration && (
           <View style={styles.celebrationOverlay}>
             <Text style={styles.celebrationText}>
-              {getMilestoneMessage(currentMilestone || 0)}
+              {getMilestoneMessage(currentMilestone || 0, t)}
             </Text>
             
             <Animated.View 
@@ -1206,7 +1210,7 @@ export default function ReadingScreen() {
               <X size={24} color={colors.text} />
             </TouchableOpacity>
             <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>SIZE</Text>
+              <Text style={styles.settingLabel}>{t('readingScreen.size')}</Text>
               <View style={styles.sliderContainer}>
                 <Text style={styles.sliderLabelSmall}>Aa</Text>
                 <Slider
@@ -1227,7 +1231,7 @@ export default function ReadingScreen() {
             <View style={styles.divider} />
             
             <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>CASE</Text>
+              <Text style={styles.settingLabel}>{t('readingScreen.case')}</Text>
               <View style={styles.caseButtonContainer}>
                 <TouchableOpacity
                   style={[styles.caseButton, textCase === 'normal' && styles.caseButtonActive]}
@@ -1247,7 +1251,7 @@ export default function ReadingScreen() {
             <View style={styles.divider} />
             
             <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>TAVUTUS</Text>
+              <Text style={styles.settingLabel}>{t('readingScreen.hyphenation')}</Text>
               <View style={styles.switchContainer}>
                 <Switch
                   value={isHyphenationEnabled}
@@ -1256,7 +1260,7 @@ export default function ReadingScreen() {
                   thumbColor={colors.text}
                 />
                 <Text style={styles.switchLabel}>
-                  {isHyphenationEnabled ? 'Ta-vu-vii-vat' : 'Tavuviivat'}
+                  {isHyphenationEnabled ? t('readingScreen.hyphenated') : t('readingScreen.notHyphenated')}
                 </Text>
               </View>
             </View>

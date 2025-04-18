@@ -7,6 +7,8 @@ import YomiEnergyDisplay from '../../components/shared/YomiEnergyDisplay';
 import { getYomiEnergy, getCurrentYomiEnergy } from '../../services/yomiEnergyService';
 import AudioPlayer from '../../components/shared/AudioPlayer';
 import { supabase } from '../../services/supabase';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../../components/shared/LanguageSwitcher';
 
 // Add this utility function at the top of your file
 const formatTime = (milliseconds: number): string => {
@@ -29,6 +31,7 @@ const verifySessionSaved = async (userId: string) => {
 
 const ReadingResultsScreen: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const { readingSessionId, readingTime, readingPoints, audioUri, correctAnswers, totalQuestions, userId, storyId } = useLocalSearchParams<{
     readingSessionId: string;
     readingTime: string;
@@ -85,10 +88,13 @@ const ReadingResultsScreen: React.FC = () => {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.mainContainer}>
         <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft color={colors.text} size={24} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Your results</Text>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft color={colors.text} size={24} />
+            </TouchableOpacity>
+            <LanguageSwitcher />
+          </View>
+          <Text style={styles.title}>{t('readingResults.title')}</Text>
           
           <View style={styles.statsContainer}>
             <View style={[styles.statBox, styles.purpleBox]}>
@@ -98,7 +104,7 @@ const ReadingResultsScreen: React.FC = () => {
               <Text style={styles.statValue}>
                 {readingTimeMinutes}:{readingTimeRemainingSeconds.toString().padStart(2, '0')}
               </Text>
-              <Text style={styles.statLabel}>Reading time</Text>
+              <Text style={styles.statLabel}>{t('readingResults.readingTime')}</Text>
             </View>
             <View style={[styles.statBox, styles.greenBox]}>
               <View style={[styles.iconContainer, styles.greenIconContainer]}>
@@ -107,7 +113,7 @@ const ReadingResultsScreen: React.FC = () => {
               <Text style={styles.statValue}>
                 {readingPoints ? parseInt(readingPoints) : 0}
               </Text>
-              <Text style={styles.statLabel}>Reading points</Text>
+              <Text style={styles.statLabel}>{t('readingResults.readingPoints')}</Text>
             </View>
           </View>
           
@@ -115,7 +121,7 @@ const ReadingResultsScreen: React.FC = () => {
             <View style={styles.comprehensionBox}>
               <View style={styles.comprehensionTextContainer}>
                 <Text style={styles.comprehensionValue}>{comprehensionPercentage}%</Text>
-                <Text style={styles.comprehensionLabel}>Reading comprehension</Text>
+                <Text style={styles.comprehensionLabel}>{t('readingResults.comprehension')}</Text>
               </View>
               <View style={styles.comprehensionIconContainer}>
                 <CheckCircle color={colors.background} size={24} />
@@ -144,7 +150,7 @@ const ReadingResultsScreen: React.FC = () => {
               params: { userId: userId }
             })}
           >
-            <Text style={styles.buttonText}>Read next story</Text>
+            <Text style={styles.buttonText}>{t('readingResults.readNextStory')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -156,7 +162,7 @@ const ReadingResultsScreen: React.FC = () => {
               }
             })}
           >
-            <Text style={styles.linkText}>Or read again</Text>
+            <Text style={styles.linkText}>{t('readingResults.readAgain')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -171,6 +177,12 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20
   },
   scrollContainer: {
     flex: 1,
@@ -194,7 +206,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.stroke,
   },
   backButton: {
-    marginBottom: 20,
+    
   },
   title: {
     fontSize: 24,
@@ -250,7 +262,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.background,
-    textAlign: 'left',
   },
   audioPlayerContainer: {
     flexDirection: 'row',
@@ -304,20 +315,20 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: colors.primary,
-    padding: 16,
-    borderRadius: 24,
+    borderRadius: 25,
+    paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 12,
   },
   buttonText: {
-    fontSize: 16,
-    fontFamily: fonts.regular,
     color: colors.text,
+    fontSize: 16,
+    fontFamily: fonts.medium,
   },
   linkText: {
-    fontSize: 16,
+    color: colors.primary,
+    fontSize: 14,
     fontFamily: fonts.regular,
-    color: colors.text,
     textAlign: 'center',
   },
   
@@ -339,31 +350,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   comprehensionContainer: {
-    marginBottom: 12,
+    marginBottom: 24,
+    marginTop: 4,
   },
   comprehensionBox: {
     backgroundColor: colors.pink,
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   comprehensionTextContainer: {
     flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'center',
   },
   comprehensionValue: {
-    fontSize: 24,
-    fontFamily: fonts.medium,
+    fontSize: 36,
+    fontFamily: fonts.regular,
     color: colors.background,
+    marginBottom: 4,
   },
   comprehensionLabel: {
     fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.background,
-    marginTop: 4,
   },
   comprehensionIconContainer: {
     width: 40,
@@ -372,7 +382,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.pinkDark,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
   },
 });
 

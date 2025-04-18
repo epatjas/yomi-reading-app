@@ -7,6 +7,7 @@ import QuestionCard from '../../components/shared/QuestionCard';
 import ProgressCircle from '../../components/shared/ProgressCircle';
 import Header from '../../components/shared/Header';
 import { Audio } from 'expo-av';
+import { useTranslation } from 'react-i18next';
 
 // supabase
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -43,7 +44,8 @@ const shuffle = <T,>(array: T[]): T[] => {
 
 const QuizScreen = () => {
   console.log('QuizScreen rendered');
-
+  const { t } = useTranslation();
+  
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     readingSessionId: string, 
@@ -103,7 +105,7 @@ const QuizScreen = () => {
       console.log('Fetching questions for storyId:', params.storyId);
       if (!params.storyId) {
         console.error('storyId is undefined');
-        setError('Story ID is missing. Cannot fetch questions.');
+        setError(t('quizScreen.errors.missingStoryId'));
         return;
       }
 
@@ -139,22 +141,22 @@ const QuizScreen = () => {
             console.log('Questions set in state');
           } else {
             console.log('No valid questions found for this story');
-            setError('No valid questions found for this story. Please try again later.');
+            setError(t('quizScreen.errors.noValidQuestions'));
           }
         } else {
           console.log('No questions found for this story');
-          setError('No questions found for this story. Please try again later.');
+          setError(t('quizScreen.errors.noQuestions'));
         }
       } else {
         console.error('Unexpected data structure:', data);
-        setError('Unexpected data structure received. Please try again later.');
+        setError(t('quizScreen.errors.unexpectedData'));
       }
     } catch (error) {
       console.error('Error in fetchQuestions:', error);
       if (error instanceof Error) {
-        setError(`Failed to fetch questions: ${error.message}`);
+        setError(t('quizScreen.errors.fetchFailed', { message: error.message }));
       } else {
-        setError('An unknown error occurred while fetching questions.');
+        setError(t('quizScreen.errors.unknown'));
       }
     }
   };
@@ -311,7 +313,7 @@ const QuizScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <Header 
-          title="Error" 
+          title={t('common.error')} 
           onBackPress={handleBackPress}
         />
         <View style={styles.container}>
@@ -320,7 +322,7 @@ const QuizScreen = () => {
             style={styles.button}
             onPress={() => router.back()}
           >
-            <Text style={styles.buttonText}>Go Back</Text>
+            <Text style={styles.buttonText}>{t('quizScreen.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -331,12 +333,12 @@ const QuizScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <Header 
-          title="Loading" 
+          title={t('quizScreen.loading')} 
           onBackPress={handleBackPress}
         />
         <View style={styles.container}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading questions...</Text>
+          <Text style={styles.loadingText}>{t('quizScreen.loadingQuestions')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -348,16 +350,16 @@ const QuizScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <Header 
-          title="Error" 
+          title={t('common.error')} 
           onBackPress={handleBackPress}
         />
         <View style={styles.container}>
-          <Text style={styles.errorText}>Error: No question data available</Text>
+          <Text style={styles.errorText}>{t('quizScreen.errors.noQuestionData')}</Text>
           <TouchableOpacity
             style={styles.button}
             onPress={() => router.back()}
           >
-            <Text style={styles.buttonText}>Go Back</Text>
+            <Text style={styles.buttonText}>{t('quizScreen.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -375,7 +377,7 @@ const QuizScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header 
-        title={storyTitle || 'Quiz'}
+        title={storyTitle || t('quizScreen.quiz')}
         onBackPress={handleBackPress}
         rightElement={
           <ProgressCircle 
@@ -396,7 +398,7 @@ const QuizScreen = () => {
         />
         
         {showMessage && (
-          <Text style={styles.messageText}>Please select an answer before checking.</Text>
+          <Text style={styles.messageText}>{t('quizScreen.selectAnswer')}</Text>
         )}
       </View>
       
@@ -406,7 +408,7 @@ const QuizScreen = () => {
             style={styles.checkButton}
             onPress={handleCheckAnswer}
           >
-            <Text style={styles.buttonText}>Check</Text>
+            <Text style={styles.buttonText}>{t('quizScreen.check')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -429,7 +431,7 @@ const QuizScreen = () => {
         >
           <View style={styles.feedbackContent}>
             <Text style={styles.feedbackText}>
-              {isCorrect ? 'Hienoa, oikein meni! Hyvin luettu.' : 'Oho, väärin meni. Kokeile uudelleen!'}
+              {isCorrect ? t('quizScreen.feedback.correct') : t('quizScreen.feedback.incorrect')}
             </Text>
           </View>
           <TouchableOpacity
@@ -437,12 +439,12 @@ const QuizScreen = () => {
             onPress={handleGotIt}
           >
             <Text style={[styles.gotItButtonText, isCorrect ? styles.correctButtonText : styles.incorrectButtonText]}>
-              {isCorrect ? 'Jatka' : 'Selvä'}
+              {isCorrect ? t('quizScreen.continue') : t('quizScreen.ok')}
             </Text>
           </TouchableOpacity>
           {!isCorrect && (
             <TouchableOpacity onPress={handleSkipQuestion}>
-              <Text style={styles.skipQuestionText}>Hyppää seuraavaan</Text>
+              <Text style={styles.skipQuestionText}>{t('quizScreen.skipQuestion')}</Text>
             </TouchableOpacity>
           )}
         </Animated.View>

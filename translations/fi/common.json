@@ -1,0 +1,148 @@
+{
+  "createProfile": {
+    "title": "Kuka lukee?",
+    "changeAvatar": "Vaihda avatar",
+    "inputLabel": "Millä nimellä kutsumme sinua?",
+    "inputPlaceholder": "SuperLukija123",
+    "startButton": "Aloitetaan lukeminen"
+  },
+  "welcome": {
+    "message": "Luodaan ensimmäinen lukijaprofiilisi!",
+    "button": "Aloitetaan"
+  },
+  "selectProfile": {
+    "title": "Kuka lukee?",
+    "addNew": "Lisää uusi"
+  },
+  "celebration": {
+    "message": "Pian pääset lukuseikkailulle!"
+  },
+  "readingResults": {
+    "title": "Tuloksesi",
+    "readingTime": "Lukuaika",
+    "readingPoints": "Lukupisteet",
+    "comprehension": "Luetun ymmärtäminen",
+    "readNextStory": "Lue seuraava tarina",
+    "readAgain": "Tai lue uudelleen"
+  },
+  "profile": {
+    "title": "Profiili",
+    "greeting": "Hei",
+    "language": "Kieli",
+    "statistics": "Tilastot",
+    "readingPoints": "Lukupisteet",
+    "timeSpentReading": "Lukuaika",
+    "readingHistory": "Lukuhistoria"
+  },
+  "library": {
+    "title": "Kirjasto",
+    "pageTitle": "Mitä haluaisit lukea?",
+    "easy": "Helppo",
+    "medium": "Keskitaso",
+    "hard": "Vaikea",
+    "wordCount": "sanaa",
+    "wordCountUnavailable": "Sanamäärä ei saatavilla"
+  },
+  "home": {
+    "readButton": "Lue Yomille",
+    "streakMessage": "Tarina päivässä pitää Yomin iloisena.",
+    "days": {
+      "monday": "MA",
+      "tuesday": "TI",
+      "wednesday": "KE",
+      "thursday": "TO",
+      "friday": "PE",
+      "saturday": "LA",
+      "sunday": "SU"
+    },
+    "yomiMessages": {
+      "veryHappy": {
+        "line1": "Yomi on iloinen!",
+        "line2": "Lukeminen tekee Yomin iloiseksi!"
+      },
+      "happy": {
+        "line1": "Yomi kaipaa huomiota.",
+        "line2": "Yomi haluaa tarinan!"
+      },
+      "neutral": {
+        "line1": "Yomi näyttää vähän uniselta.",
+        "line2": "Lukeminen antaa Yomille paljon energiaa."
+      },
+      "sad": {
+        "line1": "Yomi tarvitsee huolenpitoasi.",
+        "line2": "Ole hyvä ja lue Yomille."
+      },
+      "verySad": {
+        "line1": "Yomi on hyvin väsynyt.",
+        "line2": "Yomi tarvitsee huolenpitoasi!"
+      }
+    }
+  },
+  "components": {
+    "yomiEnergy": {
+      "energyLevel": "Energiataso"
+    },
+    "audioPlayer": {
+      "listen": "Kuuntele"
+    },
+    "readingEnergyDisplay": {
+      "readyToRead": "Napauta mikrofonia kun olet valmis lukemaan!"
+    },
+    "chooseAvatar": {
+      "title": "Valitse profiilikuva",
+      "save": "Tallenna"
+    }
+  },
+  "readingScreen": {
+    "loadingStory": "Ladataan tarinaa...",
+    "loading": "Ladataan...",
+    "getReady": "Valmistaudu lukemaan...",
+    "readToYomi": "Lue Yomille",
+    "size": "KOKO",
+    "case": "KIRJAINKOKO",
+    "hyphenation": "TAVUTUS",
+    "hyphenated": "Ta-vu-vii-vat",
+    "notHyphenated": "Tavuviivat",
+    "milestone20": "Hyvä alku! Jatka vain!",
+    "milestone40": "Menee hienosti!",
+    "milestone60": "Mahtavaa! Jatka lukemista!",
+    "milestone80": "Uskomaton lukuputki!",
+    "milestoneDefault": "Mahtavaa! Jatka lukemista!",
+    "missingParams": "Puuttuvia parametreja"
+  },
+  "quizScreen": {
+    "quiz": "Kysely",
+    "loading": "Ladataan",
+    "loadingQuestions": "Ladataan kysymyksiä...",
+    "goBack": "Takaisin",
+    "check": "Vastaa",
+    "continue": "Jatka",
+    "ok": "Selvä",
+    "selectAnswer": "Valitse vastaus ennen tarkistamista.",
+    "skipQuestion": "Hyppää seuraavaan",
+    "feedback": {
+      "correct": "Hienoa, oikein meni! Hyvin luettu.",
+      "incorrect": "Oho, väärin meni. Kokeile uudelleen!"
+    },
+    "errors": {
+      "missingStoryId": "Tarinan tunniste puuttuu. Kysymyksiä ei voida hakea.",
+      "noValidQuestions": "Tälle tarinalle ei löydy kelvollisia kysymyksiä. Yritä myöhemmin uudelleen.",
+      "noQuestions": "Tälle tarinalle ei löydy kysymyksiä. Yritä myöhemmin uudelleen.",
+      "unexpectedData": "Odottamaton tietorakenne. Yritä myöhemmin uudelleen.",
+      "fetchFailed": "Kysymysten haku epäonnistui: {{message}}",
+      "unknown": "Tuntematon virhe kysymysten haussa.",
+      "noQuestionData": "Virhe: Kysymystietoja ei ole saatavilla"
+    }
+  },
+  "errors": {
+    "enterUsername": "Syötä käyttäjänimi ennen aloittamista.",
+    "createProfileFailed": "Profiilin luominen epäonnistui. Tarkista tietokantayhteys ja yritä uudelleen.",
+    "unknown": "Tuntematon virhe tapahtui. Yritä uudelleen.",
+    "loadingProfiles": "Virhe profiilien lataamisessa."
+  },
+  "common": {
+    "oops": "Hups!",
+    "error": "Virhe",
+    "ok": "OK"
+  }
+} 

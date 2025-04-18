@@ -10,6 +10,7 @@ import { ReadingSession } from '../../services/readingSessionsHelpers';
 import Svg, { Path } from 'react-native-svg';
 import { Dimensions } from 'react-native';
 import { Flame, Check } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 const SHAPE_SIZE = Math.min(128, width * 0.3); // This ensures it's at most 128px, but can be smaller on narrow screens
@@ -22,12 +23,27 @@ const getYomiImage = (energy: number) => {
   return require('../../assets/images/yomi-very-low-energy.png');
 };
 
-const getYomiMessage = (energy: number) => {
-  if (energy >= 80) return { line1: "Yomi is happy!", line2: "Reading makes Yomi happy!" };
-  if (energy >= 60) return { line1: "Yomi wants attention.", line2: "Yomi wants a story!" };
-  if (energy >= 40) return { line1: "Yomi seems a bit sleepy.", line2: "Reading gives Yomi much energy." };
-  if (energy >= 20) return { line1: "Yomi needs your care.", line2: "Please read to Yomi." };
-  return { line1: "Yomi is very tired.", line2: "Yomi needs your care!" };
+const getYomiMessage = (energy: number, t: any) => {
+  if (energy >= 80) return { 
+    line1: t('home.yomiMessages.veryHappy.line1'), 
+    line2: t('home.yomiMessages.veryHappy.line2') 
+  };
+  if (energy >= 60) return { 
+    line1: t('home.yomiMessages.happy.line1'), 
+    line2: t('home.yomiMessages.happy.line2') 
+  };
+  if (energy >= 40) return { 
+    line1: t('home.yomiMessages.neutral.line1'), 
+    line2: t('home.yomiMessages.neutral.line2') 
+  };
+  if (energy >= 20) return { 
+    line1: t('home.yomiMessages.sad.line1'), 
+    line2: t('home.yomiMessages.sad.line2') 
+  };
+  return { 
+    line1: t('home.yomiMessages.verySad.line1'), 
+    line2: t('home.yomiMessages.verySad.line2') 
+  };
 };
 
 const getAvatarUrl = (profile: UserProfile | null): string | null => {
@@ -42,6 +58,7 @@ interface ReadingDay {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const { userId } = useLocalSearchParams();
   const [totalEnergy, setTotalEnergy] = useState(0);
   const [currentEnergy, setCurrentEnergy] = useState(0);
@@ -116,26 +133,33 @@ export default function HomeScreen() {
     });
   };
 
-  const getDayOfWeek = (date: Date): string => {
-    const days = ['SU', 'MA', 'TI', 'KE', 'TO', 'PE', 'LA'];
-    return days[date.getDay()];
+  const getDayOfWeek = (dayIndex: number): string => {
+    const daysTranslationKeys = [
+      'home.days.monday',
+      'home.days.tuesday',
+      'home.days.wednesday',
+      'home.days.thursday', 
+      'home.days.friday',
+      'home.days.saturday',
+      'home.days.sunday'
+    ];
+    return t(daysTranslationKeys[dayIndex]);
   };
 
   const renderDayMarkers = () => {
-    const dayMarkers = ['MA', 'TI', 'KE', 'TO', 'PE', 'LA', 'SU'];
     const today = new Date().getDay();
     const currentDayIndex = today === 0 ? 6 : today - 1;
 
-    return dayMarkers.map((day, index) => {
+    return Array.from({ length: 7 }, (_, index) => {
       const isActive = weeklyReadings[index]?.hasRead;
       
       return (
-        <View key={day} style={styles.dayMarker}>
+        <View key={index} style={styles.dayMarker}>
           <Text style={[
             styles.dayText, 
             index === currentDayIndex && styles.todayText
           ]}>
-            {day}
+            {getDayOfWeek(index)}
           </Text>
           <View style={[
             styles.dayDot,
@@ -181,11 +205,11 @@ export default function HomeScreen() {
               />
             </View>
             <View style={styles.messageContainer}>
-              <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line1}</Text>
-              <Text style={styles.messageLine}>{getYomiMessage(totalEnergy).line2}</Text>
+              <Text style={styles.messageLine}>{getYomiMessage(totalEnergy, t).line1}</Text>
+              <Text style={styles.messageLine}>{getYomiMessage(totalEnergy, t).line2}</Text>
             </View>
             <Pressable style={styles.readButton} onPress={handleReadPress}>
-              <Text style={styles.readButtonText}>Read to Yomi</Text>
+              <Text style={styles.readButtonText}>{t('home.readButton')}</Text>
             </Pressable>
           </View>
 
@@ -212,7 +236,7 @@ export default function HomeScreen() {
                 <View style={styles.divider} />
               </View>
               <Text style={styles.streakMessage}>
-              Keep the fire burning! Your streak is fueling Yomi's growth!
+                {t('home.streakMessage')}
               </Text>
             </View>
           </View>

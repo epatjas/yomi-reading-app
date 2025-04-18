@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Image, StyleSheet, Modal, Dimensions } from 'react-native';
 import { colors, fonts, layout } from '../../app/styles/globalStyles';
 import { supabase } from '../../supabase'; // Make sure this import path is correct
+import { useTranslation } from 'react-i18next';
 
 interface ChooseAvatarProps {
   isVisible: boolean;
@@ -24,6 +25,7 @@ const avatars = [
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ChooseAvatar({ isVisible, onClose, onSelectAvatar }: ChooseAvatarProps) {
+  const { t } = useTranslation();
   const [selectedAvatar, setSelectedAvatar] = useState(0);
 
   const handleSelectAvatar = (index: number) => {
@@ -47,7 +49,7 @@ export default function ChooseAvatar({ isVisible, onClose, onSelectAvatar }: Cho
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.handle} />
-          <Text style={styles.title}>Choose your avatar</Text>
+          <Text style={styles.title}>{t('components.chooseAvatar.title')}</Text>
           <FlatList
             data={avatars}
             renderItem={renderAvatar}
@@ -56,7 +58,7 @@ export default function ChooseAvatar({ isVisible, onClose, onSelectAvatar }: Cho
             contentContainerStyle={styles.avatarList}
           />
           <TouchableOpacity style={styles.saveButton} onPress={onClose}>
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>{t('components.chooseAvatar.save')}</Text>
           </TouchableOpacity>
         </View>
       </View>

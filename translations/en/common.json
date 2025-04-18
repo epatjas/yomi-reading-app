@@ -1,0 +1,148 @@
+{
+  "createProfile": {
+    "title": "Who's reading?",
+    "changeAvatar": "Change avatar",
+    "inputLabel": "How can we call you?",
+    "inputPlaceholder": "SuperReader123",
+    "startButton": "Let's start to read"
+  },
+  "welcome": {
+    "message": "Let's create your first reader profile!",
+    "button": "Let's go"
+  },
+  "selectProfile": {
+    "title": "Who's reading?",
+    "addNew": "Add new"
+  },
+  "celebration": {
+    "message": "Your reading adventure is about to begin"
+  },
+  "readingResults": {
+    "title": "Your results",
+    "readingTime": "Reading time",
+    "readingPoints": "Reading points",
+    "comprehension": "Reading comprehension",
+    "readNextStory": "Read next story",
+    "readAgain": "Or read again"
+  },
+  "profile": {
+    "title": "Profile",
+    "greeting": "Hi",
+    "language": "Language",
+    "statistics": "Statistics",
+    "readingPoints": "Reading points",
+    "timeSpentReading": "Time spent reading",
+    "readingHistory": "Reading history"
+  },
+  "library": {
+    "title": "Library",
+    "pageTitle": "What do you want to read?",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "wordCount": "words",
+    "wordCountUnavailable": "Word count unavailable"
+  },
+  "home": {
+    "readButton": "Read to Yomi",
+    "streakMessage": "All learning and plenty of play makes Yomi grow each day",
+    "days": {
+      "monday": "MO",
+      "tuesday": "TU",
+      "wednesday": "WE",
+      "thursday": "TH",
+      "friday": "FR",
+      "saturday": "SA",
+      "sunday": "SU"
+    },
+    "yomiMessages": {
+      "veryHappy": {
+        "line1": "Yomi is happy!",
+        "line2": "Reading makes Yomi happy!"
+      },
+      "happy": {
+        "line1": "Yomi wants attention.",
+        "line2": "Yomi wants a story!"
+      },
+      "neutral": {
+        "line1": "Yomi seems a bit sleepy.",
+        "line2": "Reading gives Yomi much energy."
+      },
+      "sad": {
+        "line1": "Yomi needs your care.",
+        "line2": "Please read to Yomi."
+      },
+      "verySad": {
+        "line1": "Yomi is very tired.",
+        "line2": "Yomi needs your care!"
+      }
+    }
+  },
+  "components": {
+    "yomiEnergy": {
+      "energyLevel": "Energy level"
+    },
+    "audioPlayer": {
+      "listen": "Listen"
+    },
+    "readingEnergyDisplay": {
+      "readyToRead": "Tap the mic when you're ready to read!"
+    },
+    "chooseAvatar": {
+      "title": "Choose your avatar",
+      "save": "Save"
+    }
+  },
+  "readingScreen": {
+    "loadingStory": "Loading story...",
+    "loading": "Loading...",
+    "getReady": "Get ready to read...",
+    "readToYomi": "Read to Yomi",
+    "size": "SIZE",
+    "case": "CASE",
+    "hyphenation": "HYPHENATION",
+    "hyphenated": "Hy-phen-at-ion",
+    "notHyphenated": "Hyphenation",
+    "milestone20": "Great start! Keep going!",
+    "milestone40": "You're doing great!",
+    "milestone60": "Amazing! Keep on reading!",
+    "milestone80": "Incredible reading streak!",
+    "milestoneDefault": "Amazing! Keep on reading!",
+    "missingParams": "Missing required parameters"
+  },
+  "quizScreen": {
+    "quiz": "Quiz",
+    "loading": "Loading",
+    "loadingQuestions": "Loading questions...",
+    "goBack": "Go Back",
+    "check": "Check",
+    "continue": "Continue",
+    "ok": "OK",
+    "selectAnswer": "Please select an answer before checking.",
+    "skipQuestion": "Skip to next",
+    "feedback": {
+      "correct": "Great job! You got it right!",
+      "incorrect": "Oops, that's not quite right. Try again!"
+    },
+    "errors": {
+      "missingStoryId": "Story ID is missing. Cannot fetch questions.",
+      "noValidQuestions": "No valid questions found for this story. Please try again later.",
+      "noQuestions": "No questions found for this story. Please try again later.",
+      "unexpectedData": "Unexpected data structure received. Please try again later.",
+      "fetchFailed": "Failed to fetch questions: {{message}}",
+      "unknown": "An unknown error occurred while fetching questions.",
+      "noQuestionData": "Error: No question data available"
+    }
+  },
+  "errors": {
+    "enterUsername": "Please enter a username before starting.",
+    "createProfileFailed": "Failed to create profile. Please check your database connection and try again.",
+    "unknown": "An unknown error occurred. Please try again.",
+    "loadingProfiles": "Error loading profiles."
+  },
+  "common": {
+    "oops": "Oops!",
+    "error": "Error",
+    "ok": "OK"
+  }
+} 
