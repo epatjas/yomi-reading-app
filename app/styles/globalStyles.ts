@@ -29,7 +29,8 @@ export const fonts = {
   regular: 'SFProRounded_400Regular', 
   medium: 'SFProRounded_500Medium',    
   semiBold: 'SFProRounded_600SemiBold', 
-  bold: 'SFProRounded_700Bold',        
+  bold: 'SFProRounded_700Bold',
+  dyslexia: 'OpenDyslexic-Regular',
 };
 
 export const globalStyles = StyleSheet.create({

@@ -1,11 +1,11 @@
 // Import necessary React and React Native components
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert, Modal, Switch, ActivityIndicator, Image, TouchableWithoutFeedback } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { MoreVertical, ArrowLeft, Square, Mic, X, Play, Pause } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { colors, fonts, layout } from '../styles/globalStyles';
-import { getStories, Story } from '../../services/storyService';
+import { getStories, Story, getStoryById } from '../../services/storyService';
 import { Audio } from 'expo-av';
 import { saveReadingSessionToDatabase, ReadingSession } from '../../services/readingSessionsHelpers';
 import ReadingEnergyDisplay, { getYomiImage } from '../../components/shared/ReadingEnergyDisplay';
@@ -18,11 +18,15 @@ import {
   addReadingEnergy 
 } from '../../services/yomiEnergyService';
 import { createClient } from '@supabase/supabase-js';
-import { syllabify } from '../../finnishHyphenation';
+import { syllabify } from '../../multilingual-hyphenation';
 import { Linking } from 'react-native';
 import Sparkle from '../../components/shared/SparkleEffect';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
+import { changeLanguage } from '../../translation';
+import LanguageSwitcher from '../../components/shared/LanguageSwitcher';
+import * as Font from 'expo-font';
+import DyslexiaText from '../../components/shared/DyslexiaText';
 
 // Global variables to handle recording state
 let globalRecording: Audio.Recording | null = null;
@@ -47,12 +51,61 @@ const getMilestoneMessage = (milestone: number, t: any) => {
   }
 };
 
+// Add a StoryContent component right after the imports
+// Add this after the imports at the top of the file
+interface StoryContentProps {
+  content: string;
+  fontSize: number;
+  textCase: 'normal' | 'uppercase' | 'lowercase';
+  fontType: 'normal' | 'dyslexia';
+  isHyphenationEnabled: boolean;
+  syllabifyText: (text: string) => string;
+}
+
+const StoryContent: React.FC<StoryContentProps> = ({ 
+  content, 
+  fontSize, 
+  textCase, 
+  fontType, 
+  isHyphenationEnabled, 
+  syllabifyText 
+}) => {
+  console.log('Rendering StoryContent with fontType:', fontType);
+  
+  const textContent = isHyphenationEnabled ? syllabifyText(content || '') : content;
+  const textStyle = {
+    fontSize: fontSize,
+    color: colors.text,
+    lineHeight: fontSize * 1.6,
+    letterSpacing: 0.5,
+    textTransform: textCase === 'uppercase' ? 'uppercase' as const : 
+                   textCase === 'lowercase' ? 'lowercase' as const : 
+                   'none' as const,
+  };
+  
+  // If using dyslexia font, return DyslexiaText component
+  if (fontType === 'dyslexia') {
+    return (
+      <DyslexiaText style={textStyle}>
+        {textContent}
+      </DyslexiaText>
+    );
+  }
+  
+  // Otherwise use regular Text with standard font
+  return (
+    <Text style={[textStyle, { fontFamily: fonts.regular }]}>
+      {textContent}
+    </Text>
+  );
+};
+
 // This section initializes the component and sets up necessary state variables for managing the reading interface.
 export default function ReadingScreen() {
   console.log('ReadingScreen attempting to mount');
   
   // Initialize translation
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation('common');
   
   // Move router declaration to the top
   const router = useRouter();
@@ -102,7 +155,7 @@ export default function ReadingScreen() {
     Array(30).fill({ current: 0.3, target: 0.3 })
   );
   const recordingAnimation = useRef(new Animated.Value(0)).current;
-  const [textCase, setTextCase] = useState('normal'); // 'normal' or 'uppercase'
+  const [textCase, setTextCase] = useState<'normal' | 'uppercase' | 'lowercase'>('normal');
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isHyphenationEnabled, setIsHyphenationEnabled] = useState(false);
   const [isRecordingUnloaded, setIsRecordingUnloaded] = useState(false);
@@ -122,6 +175,7 @@ export default function ReadingScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [currentMilestone, setCurrentMilestone] = useState<20 | 40 | 60 | 80>();
   const [lastCheckedEnergy, setLastCheckedEnergy] = useState(0);
+  const [fontType, setFontType] = useState<'normal' | 'dyslexia'>('normal');
 
   // Add these refs for animations
   const yomiScaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -247,12 +301,10 @@ export default function ReadingScreen() {
       
       try {
         setIsLoading(true);
-        const fetchedStories = await getStories();
+        const story = await getStoryById(params.storyId);
         
         if (!isMounted) return;
 
-        const story = fetchedStories.find(s => s.id === params.storyId);
-        
         if (!story) {
           throw new Error(`Story not found with ID: ${params.storyId}`);
         }
@@ -726,7 +778,10 @@ export default function ReadingScreen() {
 
   // Function to handle back button press
   const handleBackPress = () => {
-    router.back();
+    router.push({
+      pathname: '/(tabs)/reading',
+      params: { userId: params.userId }
+    });
   };
 
   const recordAndGetUri = async (duration: number = 5000): Promise<string | null> => {
@@ -1132,6 +1187,176 @@ export default function ReadingScreen() {
     };
   }, []); // Empty deps = mount/unmount only
 
+  // Completely rewrite the renderSettingsModal function for simplicity
+  const renderSettingsModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isSettingsVisible}
+      onRequestClose={() => setIsSettingsVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={() => setIsSettingsVisible(false)}>
+          <View style={{flex: 1}}/>
+        </TouchableWithoutFeedback>
+        
+        <View style={styles.modalContent}>
+          {/* Drag indicator at top */}
+          <View style={styles.dragIndicator} />
+          
+          {/* Close button */}
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setIsSettingsVisible(false)}
+          >
+            <X size={24} color={colors.text} />
+          </TouchableOpacity>
+          
+          {/* SIZE section */}
+          <View style={styles.settingSection}>
+            <Text style={styles.settingSectionTitle}>{t('readingScreen.size')}</Text>
+            <View style={styles.sliderContainer}>
+              <Text style={styles.sliderLabelSmall}>Aa</Text>
+              <Slider
+                style={styles.slider}
+                minimumValue={12}
+                maximumValue={40}
+                value={fontSize}
+                onValueChange={(value) => setFontSize(value)}
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.textSecondary}
+                thumbTintColor={colors.primary}
+              />
+              <Text style={styles.sliderLabelLarge}>Aa</Text>
+            </View>
+          </View>
+          
+          <View style={styles.divider} />
+          
+          {/* CASE section */}
+          <View style={styles.settingSection}>
+            <Text style={styles.settingSectionTitle}>{t('readingScreen.case')}</Text>
+            <View style={styles.caseButtonContainer}>
+              <TouchableOpacity
+                style={[styles.caseButton, textCase === 'normal' && styles.caseButtonActive]}
+                onPress={() => setTextCase('normal')}
+              >
+                <Text style={[
+                  styles.caseButtonText,
+                  textCase === 'normal' && styles.caseButtonTextActive
+                ]}>Aa</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.caseButton, textCase === 'uppercase' && styles.caseButtonActive]}
+                onPress={() => setTextCase('uppercase')}
+              >
+                <Text style={[
+                  styles.caseButtonText,
+                  textCase === 'uppercase' && styles.caseButtonTextActive
+                ]}>AA</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.caseButton, textCase === 'lowercase' && styles.caseButtonActive]}
+                onPress={() => setTextCase('lowercase')}
+              >
+                <Text style={[
+                  styles.caseButtonText,
+                  textCase === 'lowercase' && styles.caseButtonTextActive
+                ]}>aa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <View style={styles.divider} />
+          
+          {/* FONT section */}
+          <View style={styles.settingSection}>
+            <Text style={styles.settingSectionTitle}>{t('readingScreen.font')}</Text>
+            <View style={styles.radioButtonContainer}>
+              <TouchableOpacity 
+                style={styles.radioOption} 
+                onPress={() => {
+                  console.log('Setting font to normal');
+                  setFontType('normal');
+                }}
+              >
+                <View style={styles.radioButton}>
+                  {fontType === 'normal' && <View style={styles.radioButtonSelected} />}
+                </View>
+                <Text style={styles.radioLabel}>{t('readingScreen.fontNormal')}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.radioOption} 
+                onPress={() => {
+                  console.log('Setting font to dyslexia');
+                  setFontType('dyslexia');
+                }}
+              >
+                <View style={styles.radioButton}>
+                  {fontType === 'dyslexia' && <View style={styles.radioButtonSelected} />}
+                </View>
+                <DyslexiaText 
+                  style={{
+                    fontSize: 16,
+                    color: colors.text,
+                  }}
+                >
+                  {t('readingScreen.fontDyslexia')}
+                </DyslexiaText>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <View style={styles.divider} />
+          
+          {/* HYPHENATION section - only show for Finnish */}
+          {i18n.language === 'fi' && (
+            <>
+              <View style={styles.settingSection}>
+                <Text style={styles.settingSectionTitle}>{t('readingScreen.hyphenation')}</Text>
+                <View style={styles.switchContainer}>
+                  <Switch
+                    value={isHyphenationEnabled}
+                    onValueChange={setIsHyphenationEnabled}
+                    trackColor={{ false: colors.textSecondary, true: colors.primary }}
+                    thumbColor={colors.background01}
+                    style={styles.switch}
+                  />
+                  <Text style={styles.switchLabel}>
+                    {isHyphenationEnabled ? t('readingScreen.hyphenated') : t('readingScreen.notHyphenated')}
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Add a new useEffect to handle font changes
+  useEffect(() => {
+    console.log('Font type changed:', fontType);
+    // Force a re-render when font type changes
+  }, [fontType]);
+
+  // Add this effect to explicitly load the OpenDyslexic font when the component mounts
+  useEffect(() => {
+    async function loadDyslexicFont() {
+      try {
+        await Font.loadAsync({
+          'OpenDyslexic-Regular': require('../../assets/fonts/OpenDyslexic-Regular.otf'),
+        });
+        console.log('OpenDyslexic font loaded directly in ReadingScreen');
+      } catch (error) {
+        console.error('Failed to load OpenDyslexic font directly:', error);
+      }
+    }
+    
+    loadDyslexicFont();
+  }, []);
+
   // Render the Reading Screen UI
   if (isLoading) {
     return (
@@ -1152,7 +1377,13 @@ export default function ReadingScreen() {
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{currentStory ? currentStory.title : t('readingScreen.loading')}</Text>
-          <TouchableOpacity onPress={() => setIsSettingsVisible(true)} style={styles.headerButton}>
+          <TouchableOpacity 
+            onPress={() => {
+              console.log('Settings button pressed');
+              setIsSettingsVisible(true);
+            }} 
+            style={styles.headerButton}
+          >
             <MoreVertical size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -1169,14 +1400,14 @@ export default function ReadingScreen() {
 
         <View style={styles.scrollViewWrapper}>
           <ScrollView contentContainerStyle={styles.scrollViewContent}>
-            <Text style={[styles.content, { 
-              fontSize, 
-              textTransform: textCase === 'uppercase' ? 'uppercase' : 'none' 
-            }]}>
-              {isHyphenationEnabled 
-                ? syllabifyText(currentStory?.content || '')
-                : currentStory?.content}
-            </Text>
+            <StoryContent
+              content={currentStory?.content || ''}
+              fontSize={fontSize}
+              textCase={textCase}
+              fontType={fontType}
+              isHyphenationEnabled={isHyphenationEnabled}
+              syllabifyText={syllabifyText}
+            />
           </ScrollView>
         </View>
 
@@ -1248,88 +1479,7 @@ export default function ReadingScreen() {
         </View>
       </View>
 
-      <Modal
-        visible={isSettingsVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsSettingsVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setIsSettingsVisible(false)}
-        >
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.closeButton} 
-              onPress={() => setIsSettingsVisible(false)}
-            >
-              <X size={24} color={colors.text} />
-            </TouchableOpacity>
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>{t('readingScreen.size')}</Text>
-              <View style={styles.sliderContainer}>
-                <Text style={styles.sliderLabelSmall}>Aa</Text>
-                <Slider
-                  style={styles.slider}
-                  value={fontSize}
-                  onValueChange={setFontSize}
-                  minimumValue={16}
-                  maximumValue={32}
-                  step={1}
-                  minimumTrackTintColor={colors.primary}
-                  maximumTrackTintColor={colors.text}
-                  thumbTintColor={colors.primary}
-                />
-                <Text style={styles.sliderLabelLarge}>Aa</Text>
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>{t('readingScreen.case')}</Text>
-              <View style={styles.caseButtonContainer}>
-                <TouchableOpacity
-                  style={[styles.caseButton, textCase === 'normal' && styles.caseButtonActive]}
-                  onPress={() => setTextCase('normal')}
-                >
-                  <Text style={[
-                    styles.caseButtonText,
-                    textCase === 'normal' && styles.caseButtonTextActive
-                  ]}>Aa</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.caseButton, textCase === 'uppercase' && styles.caseButtonActive]}
-                  onPress={() => setTextCase('uppercase')}
-                >
-                  <Text style={[
-                    styles.caseButtonText,
-                    textCase === 'uppercase' && styles.caseButtonTextActive
-                  ]}>AA</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>{t('readingScreen.hyphenation')}</Text>
-              <View style={styles.switchContainer}>
-                <Switch
-                  value={isHyphenationEnabled}
-                  onValueChange={setIsHyphenationEnabled}
-                  trackColor={{ false: colors.background, true: colors.primary }}
-                  thumbColor={colors.text}
-                />
-                <Text style={styles.switchLabel}>
-                  {isHyphenationEnabled ? t('readingScreen.hyphenated') : t('readingScreen.notHyphenated')}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {renderSettingsModal()}
     </SafeAreaView>
   );
 };
@@ -1437,8 +1587,8 @@ const styles = StyleSheet.create({
   recordingContainer: {
     position: 'absolute',
     bottom: 0,
-    left: 0,
-    right: 0,
+    left: 16,
+    right: 16,
     borderRadius: 30,
     overflow: 'hidden',
     backgroundColor: colors.background02,
@@ -1458,52 +1608,65 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.background02,
-    paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingHorizontal: 16,
     paddingBottom: 24,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    // Ensure content doesn't exceed screen height
+    maxHeight: '90%',
   },
-  settingItem: {
-    marginBottom: 20, 
+  dragIndicator: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.textSecondary,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 24,
   },
-  settingLabel: {
-    fontSize: 11,
+  settingSection: {
+    marginBottom: 24,
+  },
+  settingSectionTitle: {
+    fontSize: 14,
     color: colors.text,
+    fontFamily: fonts.medium,
+    letterSpacing: 1,
     marginBottom: 16,
-    fontWeight: '500', 
-    textTransform: 'uppercase',
-    letterSpacing: 0.5, 
   },
   sliderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  slider: {
-    flex: 1,
-    marginHorizontal: 10,
-  },
   sliderLabelSmall: {
     fontSize: 16,
     color: colors.text,
+    fontFamily: fonts.regular,
   },
   sliderLabelLarge: {
-    fontSize: 24,
+    fontSize: 32,
     color: colors.text,
+    fontFamily: fonts.regular,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 24,
   },
   caseButtonContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-start', 
-    gap: 16, 
+    justifyContent: 'flex-start',
+    marginTop: 8,
+    gap: 16,
   },
   caseButton: {
     backgroundColor: colors.background,
-    width: 48,  
-    height: 48, 
+    width: 48,
+    height: 48,
     borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center', 
+    justifyContent: 'center',
   },
   caseButtonActive: {
     backgroundColor: colors.primary,
@@ -1516,32 +1679,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.buttonTextDark,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#373846",
-    marginVertical: 24, 
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  switchLabel: {
-    marginLeft: 8,
-    color: colors.text,
-    fontSize: 18,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: colors.background02, 
-  },
   scrollViewContent: {
     paddingBottom: 160,
     paddingHorizontal: 16,
-    backgroundColor: colors.background,
   },
   loadingText: {
     fontFamily: fonts.medium,
@@ -1581,7 +1721,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#262736',
+    backgroundColor: colors.background01,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -1590,7 +1730,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.text,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1673,5 +1813,89 @@ const styles = StyleSheet.create({
     bottom: -50,
     height: 200,
     zIndex: 5,
+  },
+  storyTitle: {
+    fontSize: 24,
+    color: colors.text,
+    marginBottom: 16,
+    fontFamily: fonts.bold,
+  },
+  storyText: {
+    fontSize: 20,
+    color: colors.text,
+    lineHeight: 32,
+    fontFamily: fonts.regular,
+    letterSpacing: 0.5,
+  },
+  recordButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.incorrect,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: colors.background,
+    borderRadius: 3,
+    marginTop: 12,
+  },
+  progress: {
+    height: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  radioButtonContainer: {
+    gap: 16,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.textSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioButtonSelected: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.primary,
+  },
+  radioLabel: {
+    fontSize: 16,
+    color: colors.text,
+    fontFamily: fonts.regular,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  switch: {
+    transform: [{ scale: 1.1 }],
+  },
+  switchLabel: {
+    fontSize: 16,
+    color: colors.text,
+    fontFamily: fonts.regular,
+  },
+  slider: {
+    flex: 1,
+    marginHorizontal: 10,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
   },
 });

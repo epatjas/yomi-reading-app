@@ -5,7 +5,6 @@ import { colors, fonts, layout } from '../styles/globalStyles';
 import { createClient } from '@supabase/supabase-js';
 import QuestionCard from '../../components/shared/QuestionCard';
 import ProgressCircle from '../../components/shared/ProgressCircle';
-import Header from '../../components/shared/Header';
 import { Audio } from 'expo-av';
 import { useTranslation } from 'react-i18next';
 
@@ -25,14 +24,15 @@ interface Question {
   correct_answer: string;
   incorrect_answers: string[];
   story_id: string;
+  language: string;
 }
 
 interface Story {
   id: string;
   title: string;
-
 }
 
+// Shuffle array utility
 const shuffle = <T,>(array: T[]): T[] => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -42,9 +42,24 @@ const shuffle = <T,>(array: T[]): T[] => {
   return newArray;
 };
 
+// Custom header component without back button
+const CustomHeader = ({ title, rightElement }: { title: string, rightElement?: React.ReactNode }) => {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerButtonPlaceholder} />
+      <Text style={styles.headerTitle}>{title}</Text>
+      {rightElement && (
+        <View style={styles.rightElement}>
+          {rightElement}
+        </View>
+      )}
+    </View>
+  );
+};
+
 const QuizScreen = () => {
   console.log('QuizScreen rendered');
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const router = useRouter();
   const params = useLocalSearchParams<{ 
@@ -109,10 +124,14 @@ const QuizScreen = () => {
         return;
       }
 
+      const currentLanguage = i18n.language;
+      console.log('Current language:', currentLanguage);
+
       const { data, error } = await supabase
         .from('questions')
         .select('*')
-        .eq('story_id', params.storyId);
+        .eq('story_id', params.storyId)
+        .eq('language', currentLanguage);
 
       console.log('Supabase response:', JSON.stringify(data, null, 2));
 
@@ -125,7 +144,6 @@ const QuizScreen = () => {
         console.log('Total questions fetched:', data.length);
         if (data.length > 0) {
           console.log('Sample question:', JSON.stringify(data[0], null, 2));
-          // Ensure each question has the required properties
           const validQuestions = data.filter(question => 
             question.id && 
             question.question_text && 
@@ -152,22 +170,19 @@ const QuizScreen = () => {
         setError(t('quizScreen.errors.unexpectedData'));
       }
     } catch (error) {
-      console.error('Error in fetchQuestions:', error);
-      if (error instanceof Error) {
-        setError(t('quizScreen.errors.fetchFailed', { message: error.message }));
-      } else {
-        setError(t('quizScreen.errors.unknown'));
-      }
+      console.error('Error fetching questions:', error);
+      setError(
+        error instanceof Error
+          ? t('quizScreen.errors.fetchFailed', { message: error.message })
+          : t('quizScreen.errors.unknown')
+      );
     }
   };
 
   const fetchStoryTitle = async () => {
-    try {
-      if (!params.storyId) {
-        console.error('storyId is undefined');
-        return;
-      }
+    if (!params.storyId) return;
 
+    try {
       const { data, error } = await supabase
         .from('stories')
         .select('title')
@@ -189,7 +204,6 @@ const QuizScreen = () => {
 
   const handleAnswerSelect = (answer: string) => {
     setSelectedAnswer(answer);
-    setIsAnswerChecked(false);
   };
 
   const playCorrectSound = async () => {
@@ -234,14 +248,12 @@ const QuizScreen = () => {
       await playCorrectSound();
     }
 
-    // Animate feedback container
     Animated.timing(feedbackAnimation, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
 
-    // Save answer to database
     const { error } = await supabase
       .from('questions_answered')
       .insert({
@@ -284,7 +296,6 @@ const QuizScreen = () => {
       setAttempts(0);
       setShowFeedback(false);
     } else {
-      // Quiz finished, navigate to results screen
       router.push({
         pathname: '/screens/ReadingResultsScreen',
         params: { 
@@ -295,14 +306,11 @@ const QuizScreen = () => {
           audioUri: params.audioUri,
           correctAnswers: correctAnswers.toString(),
           totalQuestions: questions.length.toString(),
-          userId: params.userId
+          userId: params.userId,
+          storyId: params.storyId
         }
       });
     }
-  };
-
-  const handleBackPress = () => {
-    router.back();
   };
 
   const handleSkipQuestion = () => {
@@ -312,15 +320,15 @@ const QuizScreen = () => {
   if (error) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header 
-          title={t('common.error')} 
-          onBackPress={handleBackPress}
-        />
+        <CustomHeader title={t('common.error')} />
         <View style={styles.container}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.back()}
+            onPress={() => router.push({
+              pathname: '/(tabs)/reading',
+              params: { userId: params.userId }
+            })}
           >
             <Text style={styles.buttonText}>{t('quizScreen.goBack')}</Text>
           </TouchableOpacity>
@@ -332,10 +340,7 @@ const QuizScreen = () => {
   if (questions.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header 
-          title={t('quizScreen.loading')} 
-          onBackPress={handleBackPress}
-        />
+        <CustomHeader title={t('quizScreen.loading')} />
         <View style={styles.container}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>{t('quizScreen.loadingQuestions')}</Text>
@@ -349,15 +354,15 @@ const QuizScreen = () => {
   if (!currentQuestion) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header 
-          title={t('common.error')} 
-          onBackPress={handleBackPress}
-        />
+        <CustomHeader title={t('common.error')} />
         <View style={styles.container}>
           <Text style={styles.errorText}>{t('quizScreen.errors.noQuestionData')}</Text>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.back()}
+            onPress={() => router.push({
+              pathname: '/(tabs)/reading',
+              params: { userId: params.userId }
+            })}
           >
             <Text style={styles.buttonText}>{t('quizScreen.goBack')}</Text>
           </TouchableOpacity>
@@ -376,9 +381,8 @@ const QuizScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header 
+      <CustomHeader 
         title={storyTitle || t('quizScreen.quiz')}
-        onBackPress={handleBackPress}
         rightElement={
           <ProgressCircle 
             progress={(currentQuestionIndex + 1) / questions.length} 
@@ -462,13 +466,36 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: layout.padding,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 64,
+  },
+  headerButtonPlaceholder: {
+    width: 40,
+    height: 40,
+  },
+  headerTitle: {
+    fontFamily: fonts.medium,
+    fontSize: 18,
+    color: colors.text,
+    flex: 1,
+    textAlign: 'center',
+  },
+  rightElement: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   button: {
     backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 30,
     alignItems: 'center',
     marginTop: layout.spacing * 2,
-  
   },
   buttonText: {
     fontSize: 18,
@@ -543,7 +570,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     padding: layout.padding,
-    paddingBottom: 34, // Extra padding for devices with home indicator
+    paddingBottom: 34,
     backgroundColor: colors.background,
   },
   checkButton: {
@@ -565,7 +592,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
     marginTop: 16,
-    // Removed textDecorationLine: 'underline',
   },
 });
 

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Play, Pause } from 'lucide-react-native';
 import { colors, fonts, layout } from '../../app/styles/globalStyles';
+import { useTranslation } from 'react-i18next';
 
 interface AudioPlayerProps {
   audioUri: string;
@@ -16,6 +17,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const animatedValues = useRef<Animated.Value[]>([]);
   const [isActive, setIsActive] = useState(false);
+  const { t } = useTranslation('common');
 
   useEffect(() => {
     loadAudio();
@@ -111,7 +113,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUri }) => {
       </TouchableOpacity>
       <View style={styles.progressContainer}>
         {!isActive ? (
-          <Text style={styles.listenText}>Kuuntele</Text>
+          <Text style={styles.listenText}>{t('components.audioPlayer.listen')}</Text>
         ) : (
           <View style={styles.timeAndWaveformContainer}>
             <Text style={styles.timeText}>{formatTime(position)}</Text>

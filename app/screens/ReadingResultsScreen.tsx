@@ -89,11 +89,8 @@ const ReadingResultsScreen: React.FC = () => {
       <View style={styles.mainContainer}>
         <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft color={colors.text} size={24} />
-            </TouchableOpacity>
+            <Text style={styles.title}>{t('readingResults.title')}</Text>
           </View>
-          <Text style={styles.title}>{t('readingResults.title')}</Text>
           
           <View style={styles.statsContainer}>
             <View style={[styles.statBox, styles.purpleBox]}>
@@ -179,7 +176,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20
   },
@@ -212,6 +209,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.text,
     marginBottom: 20,
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
