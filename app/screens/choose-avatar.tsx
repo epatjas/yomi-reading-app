@@ -18,7 +18,12 @@ const avatars = [
   { uri: 'https://rkexvjlqjbqktwwipfmi.supabase.co/storage/v1/object/public/avatars/avatar9.png' }
 ];
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height } = Dimensions.get('window');
+const isTablet = SCREEN_WIDTH >= 768 || height >= 768;
+const isLandscape = SCREEN_WIDTH > height;
+const COLUMNS = isTablet && isLandscape ? 4 : 3;
+const AVATAR_MARGIN = isTablet ? 12 : 8;
+const AVATAR_SIZE = (SCREEN_WIDTH - layout.padding * 2) / COLUMNS - (AVATAR_MARGIN * 2);
 
 export default function ChooseAvatarScreen() {
   const router = useRouter();
@@ -87,34 +92,61 @@ export default function ChooseAvatarScreen() {
       onPress={() => handleAvatarSelect(index)} 
       style={[
         styles.avatarWrapper, 
-        selectedAvatar === index && styles.selectedAvatarWrapper
+        selectedAvatar === index && styles.selectedAvatarWrapper,
+        { 
+          width: AVATAR_SIZE,
+          height: AVATAR_SIZE,
+          borderRadius: AVATAR_SIZE / 2,
+          margin: AVATAR_MARGIN
+        }
       ]}
     >
-      <Image source={{ uri: item.uri }} style={styles.avatarImage} />
+      <Image 
+        source={{ uri: item.uri }} 
+        style={[
+          styles.avatarImage,
+          { borderRadius: (AVATAR_SIZE / 2) - 2 }
+        ]} 
+      />
     </Pressable>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.headerTitle}>{t('createProfile.title', 'Who\'s reading?')}</Text>
+      <Text style={[
+        styles.headerTitle,
+        isTablet && { fontSize: 20, marginTop: 40 }
+      ]}>{t('createProfile.title', 'Who\'s reading?')}</Text>
       
       <View style={styles.content}>
-        <Text style={styles.subtitle}>{t('chooseAvatar.title', 'Choose a profile pic')}</Text>
+        <Text style={[
+          styles.subtitle,
+          isTablet && { fontSize: 26, marginTop: layout.spacing * 4 }
+        ]}>{t('chooseAvatar.title', 'Choose a profile pic')}</Text>
         
         <FlatList
           data={avatars}
           renderItem={renderAvatar}
           keyExtractor={(_, index) => index.toString()}
-          numColumns={3}
-          contentContainerStyle={styles.avatarList}
+          numColumns={COLUMNS}
+          contentContainerStyle={[
+            styles.avatarList,
+            isTablet && isLandscape && { paddingHorizontal: SCREEN_WIDTH * 0.1 }
+          ]}
         />
       </View>
       
       <Pressable 
-        style={styles.startButton} 
+        style={[
+          styles.startButton,
+          isTablet && isLandscape && { width: '40%', paddingVertical: 18 }
+        ]} 
         onPress={handleStartReading}
       >
-        <Text style={styles.startButtonText}>{t('chooseAvatar.startReading', 'Let\'s start to read')}</Text>
+        <Text style={[
+          styles.startButtonText,
+          isTablet && { fontSize: 18 }
+        ]}>{t('chooseAvatar.startReading', 'Let\'s start to read')}</Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -150,10 +182,6 @@ const styles = StyleSheet.create({
     paddingBottom: layout.spacing * 2,
   },
   avatarWrapper: {
-    width: (SCREEN_WIDTH - layout.padding * 2) / 3 - 16,
-    height: (SCREEN_WIDTH - layout.padding * 2) / 3 - 16,
-    borderRadius: (SCREEN_WIDTH - layout.padding * 2) / 6,
-    margin: 8,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background02,
@@ -168,7 +196,6 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: (SCREEN_WIDTH - layout.padding * 2) / 6 - 2,
   },
   startButton: {
     backgroundColor: colors.primary,

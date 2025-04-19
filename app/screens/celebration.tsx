@@ -6,7 +6,13 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
-const YOMI_SIZE = Math.min(width * 0.5, height * 0.3);
+const isTablet = width >= 768 || height >= 768;
+const isLandscape = width > height;
+
+// Adjust sizes for different screen sizes
+const YOMI_SIZE = isTablet 
+  ? (isLandscape ? Math.min(width * 0.35, height * 0.4) : Math.min(width * 0.4, height * 0.3))
+  : Math.min(width * 0.5, height * 0.3);
 const SHAPE_SIZE = YOMI_SIZE * 1.2;
 
 export default function CelebrationScreen() {
@@ -19,7 +25,7 @@ export default function CelebrationScreen() {
   const rotateAnim = useRef(new Animated.Value(0)).current;
   
   // Create sparkle animations
-  const sparkleCount = 12;
+  const sparkleCount = isTablet ? 18 : 12;
   const sparkleAnims = useRef(
     Array(sparkleCount).fill(0).map(() => ({
       position: new Animated.ValueXY({ x: 0, y: 0 }),
@@ -30,12 +36,16 @@ export default function CelebrationScreen() {
   ).current;
 
   useEffect(() => {
+    // Adjust animation distance based on screen size
+    const animationDistance = isTablet ? YOMI_SIZE * 1.3 : YOMI_SIZE + 50;
+    const animationDuration = isTablet ? 1200 : 1000;
+
     // Start all animations in parallel
     Animated.parallel([
       // Fade in the content
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: animationDuration,
         useNativeDriver: true,
       }),
       
@@ -50,7 +60,7 @@ export default function CelebrationScreen() {
       Animated.sequence([
         Animated.timing(yomiAnim, {
           toValue: 1,
-          duration: 800,
+          duration: animationDuration * 0.8,
           useNativeDriver: true,
         }),
         Animated.spring(yomiAnim, {
@@ -89,8 +99,7 @@ export default function CelebrationScreen() {
       // Sparkle animations
       ...sparkleAnims.map((anim, i) => {
         const angle = (i / sparkleAnims.length) * Math.PI * 2;
-        const distance = YOMI_SIZE + Math.random() * 50;
-        const randomRotation = Math.random() * 360;
+        const distance = animationDistance + Math.random() * 50;
         
         return Animated.parallel([
           // Position animation - move outward
@@ -99,7 +108,7 @@ export default function CelebrationScreen() {
               x: Math.cos(angle) * distance,
               y: Math.sin(angle) * distance,
             },
-            duration: 1000 + Math.random() * 500,
+            duration: animationDuration + Math.random() * 500,
             useNativeDriver: true,
           }),
           
@@ -136,7 +145,7 @@ export default function CelebrationScreen() {
           // Rotation animation
           Animated.timing(anim.rotation, {
             toValue: 1,
-            duration: 1000 + Math.random() * 500,
+            duration: animationDuration + Math.random() * 500,
             useNativeDriver: true,
           }),
         ]);
@@ -149,7 +158,7 @@ export default function CelebrationScreen() {
         pathname: '/(tabs)',
         params: { userId }
       });
-    }, 4500);
+    }, isTablet ? 5000 : 4500);
     
     return () => clearTimeout(timer);
   }, [router, userId, fadeAnim, scaleAnim, yomiAnim, rotateAnim, sparkleAnims]);
@@ -161,6 +170,8 @@ export default function CelebrationScreen() {
         style={[
           styles.yomiContainer, 
           {
+            width: SHAPE_SIZE,
+            height: SHAPE_SIZE,
             opacity: yomiAnim,
             transform: [
               { scale: yomiAnim },
@@ -187,7 +198,7 @@ export default function CelebrationScreen() {
         {/* Yomi character */}
         <Image
           source={require('../../assets/images/yomi-character.png')}
-          style={styles.yomiImage}
+          style={[styles.yomiImage, { width: YOMI_SIZE, height: YOMI_SIZE }]}
         />
         
         {/* Sparkles */}
@@ -197,6 +208,8 @@ export default function CelebrationScreen() {
             style={[
               styles.sparkle,
               {
+                width: isTablet ? 15 : 10,
+                height: isTablet ? 15 : 10,
                 opacity: anim.opacity,
                 transform: [
                   { translateX: anim.position.x },
@@ -212,7 +225,12 @@ export default function CelebrationScreen() {
           >
             <View style={[
               styles.sparkleItem, 
-              { backgroundColor: i % 3 === 0 ? colors.yellowDark : colors.yellowLight }
+              { 
+                width: isTablet ? 15 : 10,
+                height: isTablet ? 15 : 10,
+                borderRadius: isTablet ? 3 : 2,
+                backgroundColor: i % 3 === 0 ? colors.yellowDark : colors.yellowLight 
+              }
             ]} />
           </Animated.View>
         ))}
@@ -222,6 +240,7 @@ export default function CelebrationScreen() {
       <Animated.Text 
         style={[
           styles.celebrationText,
+          isTablet && { fontSize: 28, lineHeight: 44, maxWidth: '70%' },
           {
             opacity: fadeAnim,
             transform: [{ scale: scaleAnim }]
@@ -245,8 +264,6 @@ const styles = StyleSheet.create({
   },
   yomiContainer: {
     position: 'relative',
-    width: SHAPE_SIZE,
-    height: SHAPE_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: height * 0.08,
@@ -257,8 +274,6 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   yomiImage: {
-    width: YOMI_SIZE,
-    height: YOMI_SIZE,
     resizeMode: 'contain',
   },
   celebrationText: {
@@ -271,13 +286,10 @@ const styles = StyleSheet.create({
   },
   sparkle: {
     position: 'absolute',
-    width: 10,
-    height: 10,
     zIndex: 10,
   },
   sparkleItem: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
+    width: '100%',
+    height: '100%',
   },
 });

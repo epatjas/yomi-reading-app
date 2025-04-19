@@ -7,7 +7,11 @@ import { useTranslation } from 'react-i18next';
 import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height } = Dimensions.get('window');
-const SHAPE_SIZE = Math.min(140, SCREEN_WIDTH * 0.35);
+const isTablet = SCREEN_WIDTH >= 768 || height >= 768;
+const isLandscape = SCREEN_WIDTH > height;
+const SHAPE_SIZE = isTablet 
+  ? (isLandscape ? Math.min(180, height * 0.35) : Math.min(180, SCREEN_WIDTH * 0.35))
+  : Math.min(140, SCREEN_WIDTH * 0.35);
 
 export default function CreateProfileScreen() {
   const router = useRouter();
@@ -53,15 +57,28 @@ export default function CreateProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>{t('createProfile.title')}</Text>
+      <Text style={[
+        styles.title,
+        isTablet && { fontSize: 22, marginTop: layout.spacing * 3 }
+      ]}>{t('createProfile.title')}</Text>
 
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardAvoidingContainer}
+        style={[
+          styles.keyboardAvoidingContainer,
+          isTablet && isLandscape && styles.landscapeKeyboardContainer
+        ]}
         keyboardVerticalOffset={20}
       >
-        <View style={styles.contentContainer}>
-          <View style={styles.characterContainer}>
+        <View style={[
+          styles.contentContainer,
+          isTablet && { height: isLandscape ? 250 : 350 },
+          isTablet && isLandscape && styles.landscapeContentContainer
+        ]}>
+          <View style={[
+            styles.characterContainer,
+            isTablet && isLandscape && styles.landscapeCharacterContainer
+          ]}>
             <Svg width={SHAPE_SIZE} height={SHAPE_SIZE} viewBox="0 0 184 180" style={styles.shapeBackground}>
               <Path
                 d="M147.296 34.918C128.753 16.8494 116.849 -0.00828492 91.0203 3.05478e-05C63.6175 0.00879629 53.4067 18.6067 34.255 38.3606C15.6594 57.5409 1.40808e-05 59.9999 0 89.9999C-1.40808e-05 120 16.4608 124.261 32.7869 141.147C51.8094 160.822 63.7238 179.919 91.0203 180C116.65 180.075 130.169 165.246 147.296 146.065C164.501 126.798 183.788 116.871 183.998 90.9835C184.211 64.776 166.019 53.1613 147.296 34.918Z"
@@ -74,11 +91,23 @@ export default function CreateProfileScreen() {
             />
           </View>
 
-          <View style={styles.speechBubbleContainer}>
-            <View style={styles.speechBubble}>
-              <Text style={styles.messageText}>{t('createProfile.inputLabel')}</Text>
+          <View style={[
+            styles.speechBubbleContainer,
+            isTablet && isLandscape && styles.landscapeSpeechContainer
+          ]}>
+            <View style={[
+              styles.speechBubble,
+              isTablet && { paddingHorizontal: 32, paddingVertical: 34 }
+            ]}>
+              <Text style={[
+                styles.messageText,
+                isTablet && { fontSize: 24, lineHeight: 32 }
+              ]}>{t('createProfile.inputLabel')}</Text>
             </View>
-            <Svg height="30" width="60" style={styles.speechBubblePointer}>
+            <Svg height="30" width="60" style={[
+              styles.speechBubblePointer,
+              isTablet && isLandscape && styles.landscapeSpeechPointer
+            ]}>
               <Path
                 d="M 0,0 Q 25,15 10,30 L 60,0 Z"
                 fill={colors.background02}
@@ -86,9 +115,15 @@ export default function CreateProfileScreen() {
             </Svg>
           </View>
 
-          <View style={styles.inputContainer}>
+          <View style={[
+            styles.inputContainer,
+            isTablet && isLandscape && styles.landscapeInputContainer
+          ]}>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                isTablet && { fontSize: 24, width: isLandscape ? '60%' : '80%' }
+              ]}
               value={username}
               onChangeText={setUsername}
               placeholder={t('createProfile.inputPlaceholder')}
@@ -101,10 +136,16 @@ export default function CreateProfileScreen() {
       </KeyboardAvoidingView>
       
       <Pressable 
-        style={styles.continueButton} 
+        style={[
+          styles.continueButton,
+          isTablet && isLandscape && { width: '40%', paddingVertical: 18 }
+        ]} 
         onPress={handleContinue}
       >
-        <Text style={styles.continueButtonText}>{t('common.continue')}</Text>
+        <Text style={[
+          styles.continueButtonText,
+          isTablet && { fontSize: 18 }
+        ]}>{t('common.continue')}</Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -129,11 +170,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  landscapeKeyboardContainer: {
+    alignItems: 'center',
+  },
   contentContainer: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
     height: 300,
+  },
+  landscapeContentContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-around',
+    paddingHorizontal: '5%',
   },
   characterContainer: {
     position: 'absolute',
@@ -143,6 +193,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     top: 100,
     zIndex: 1,
+  },
+  landscapeCharacterContainer: {
+    position: 'relative',
+    left: -SCREEN_WIDTH * 0.1,
+    top: 0,
   },
   shapeBackground: {
     position: 'absolute',
@@ -161,6 +216,11 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: 2,
   },
+  landscapeSpeechContainer: {
+    position: 'relative',
+    right: -SCREEN_WIDTH * 0.05,
+    width: '45%',
+  },
   speechBubble: {
     backgroundColor: colors.background02,
     borderRadius: 50,
@@ -176,6 +236,13 @@ const styles = StyleSheet.create({
     right: '25%',
     zIndex: 2,
   },
+  landscapeSpeechPointer: {
+    left: '10%',
+    bottom: 'auto', 
+    right: 'auto',
+    top: '50%',
+    transform: [{ rotate: '-90deg' }],
+  },
   messageText: {
     fontFamily: fonts.semiBold,
     fontSize: 20,
@@ -189,6 +256,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     bottom: 0,
     zIndex: 3,
+  },
+  landscapeInputContainer: {
+    position: 'relative',
+    top: '50%',
+    right: -SCREEN_WIDTH * 0.05,
+    width: '45%',
   },
   input: {
     width: '80%',

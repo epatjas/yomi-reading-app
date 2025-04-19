@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadSavedLanguage } from '../translation';
 
 const { width, height } = Dimensions.get('window');
+const isTablet = width >= 768 || height >= 768; // iPad detection
 
 export default function Index() {
   const router = useRouter();
@@ -87,8 +88,8 @@ export default function Index() {
       <View style={styles.contentContainer}>
         <View style={styles.backgroundContainer}>
           <BackgroundShape 
-            width={width * 0.6} 
-            height={width * 0.6} 
+            width={isTablet ? width * 0.4 : width * 0.6} 
+            height={isTablet ? width * 0.4 : width * 0.6} 
             fill={colors.yellowDark} 
           />
         </View>
@@ -100,8 +101,8 @@ export default function Index() {
         />
         <View style={[styles.logoWrapper, { zIndex: 2 }]}>
           <YomiLogo 
-            width={width * 0.3} 
-            height={width * 0.3} 
+            width={isTablet ? width * 0.2 : width * 0.3} 
+            height={isTablet ? width * 0.2 : width * 0.3} 
           />
         </View>
       </View>
@@ -118,8 +119,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     position: 'relative',
-    width: width * 0.8,
-    height: width * 0.8,
+    width: width >= 768 ? width * 0.5 : width * 0.8,
+    height: width >= 768 ? width * 0.5 : width * 0.8,
     justifyContent: 'center',
     alignItems: 'center',
   },
